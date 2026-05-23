@@ -28,7 +28,7 @@ class SortStrategyTest {
     }
 
     @Test
-    void ordenaAlfabeticamenteYAgrupaStacks() {
+    void ordenaAlfabeticamenteSinFusionarStacks() {
         List<SortableSlot> input = inv(
                 stick(10),
                 SortableSlot.empty(),
@@ -41,15 +41,15 @@ class SortStrategyTest {
 
         assertEquals(5, result.size());
         // Orden DESCENDENTE por itemId: stick antes que apple.
-        // 15 sticks → un stack de 15, y 60 manzanas → un stack de 60.
         assertEquals("minecraft:stick", result.get(0).itemId());
-        assertEquals(15, result.get(0).count());
-        assertEquals("minecraft:apple", result.get(1).itemId());
-        assertEquals(60, result.get(1).count());
-        // El resto vacío.
-        for (int i = 2; i < result.size(); i++) {
-            assertTrue(result.get(i).isEmpty(), "slot " + i + " debería estar vacío");
-        }
+        assertEquals(10, result.get(0).count());
+        assertEquals("minecraft:stick", result.get(1).itemId());
+        assertEquals(5, result.get(1).count());
+        assertEquals("minecraft:apple", result.get(2).itemId());
+        assertEquals(40, result.get(2).count());
+        assertEquals("minecraft:apple", result.get(3).itemId());
+        assertEquals(20, result.get(3).count());
+        assertTrue(result.get(4).isEmpty());
     }
 
     @Test
@@ -74,15 +74,14 @@ class SortStrategyTest {
     }
 
     @Test
-    void respetaMaxStackAlFusionar() {
-        // 100 manzanas en 3 stacks; maxStack = 64 → debe partir en 64 + 36.
+    void conservaStacksSeparadosAunqueSeanDelMismoItem() {
         List<SortableSlot> input = inv(apple(40), apple(40), apple(20));
 
         List<SortableSlot> result = SortStrategy.sort(input, Set.of());
 
-        assertEquals(64, result.get(0).count());
-        assertEquals(36, result.get(1).count());
-        assertTrue(result.get(2).isEmpty());
+        assertEquals(40, result.get(0).count());
+        assertEquals(40, result.get(1).count());
+        assertEquals(20, result.get(2).count());
     }
 
     @Test

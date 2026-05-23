@@ -41,12 +41,8 @@ public final class KeyPoller {
 
     private boolean isDown() {
         InputConstants.Key key = currentKey();
-        if (key == null) return false;
-        if (key.getType() != InputConstants.Type.KEYSYM) return false;
-        int code = key.getValue();
-        if (code <= 0) return false;
         long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, code) == GLFW.GLFW_PRESS;
+        return KeyInput.isKeyboardKeyDown(key, code -> GLFW.glfwGetKey(handle, code) == GLFW.GLFW_PRESS);
     }
 
     /**

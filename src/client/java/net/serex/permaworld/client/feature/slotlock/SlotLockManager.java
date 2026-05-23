@@ -7,6 +7,9 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.keybind.KeyInput;
+import net.serex.permaworld.client.keybind.Keybinds;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Set;
 
@@ -88,16 +91,27 @@ public final class SlotLockManager {
     /**
      * ¿Está pulsado el modificador de Slot Lock?
      * <p>
-     * Por defecto se considera "pulsado" si cualquiera de las dos teclas ALT está
-     * presionada. El {@code KeyMapping} en {@link net.serex.permaworld.client.keybind.Keybinds#slotLockModifier}
-     * está pensado para hacer visible y reasignable este modificador en el menú
-     * de controles; la detección real se hace contra GLFW para que funcione
-     * de forma estable mientras hay una pantalla abierta (donde los `KeyMapping`
-     * normales no se actualizan).
+     * Usa el {@code KeyMapping} visible en el menú de controles y lo consulta
+     * contra GLFW para que funcione de forma estable mientras hay una pantalla
+     * abierta (donde los {@code KeyMapping} normales no se actualizan).
      */
     public static boolean modifierDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
-        return org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
-                || org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        return modifierDown(code -> GLFW.glfwGetKey(handle, code) == GLFW.GLFW_PRESS);
+    }
+
+    static boolean modifierDown(java.util.function.IntPredicate keyDown) {
+        if (Keybinds.slotLockModifier == null) {
+            return altFallbackDown(keyDown);
+        }
+        try {
+            return KeyInput.isKeyboardKeyDown(Keybinds.slotLockModifier.saveString(), keyDown);
+        } catch (Exception e) {
+            return altFallbackDown(keyDown);
+        }
+    }
+
+    private static boolean altFallbackDown(java.util.function.IntPredicate keyDown) {
+        return keyDown.test(GLFW.GLFW_KEY_LEFT_ALT) || keyDown.test(GLFW.GLFW_KEY_RIGHT_ALT);
     }
 }
