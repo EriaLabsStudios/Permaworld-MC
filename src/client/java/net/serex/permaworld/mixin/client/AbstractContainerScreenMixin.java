@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -41,12 +42,16 @@ public abstract class AbstractContainerScreenMixin {
         if (SlotLockManager.modifierDown()) {
             // ALT (o el modificador configurado) + click sobre un slot del inventario → toggle lock.
             SlotLockManager.toggle(invIndex);
+            DebugLog.log("slotlock", "Toggle lock en slot inv={} (locked ahora={}).",
+                    invIndex, SlotLockManager.isLocked(invIndex));
             ci.cancel();
             return;
         }
 
         if (SlotLockManager.isLocked(invIndex)) {
             // Bloqueado: cancelamos cualquier interacción Vanilla con el slot.
+            DebugLog.log("slotlock", "Click cancelado en slot bloqueado inv={} (button={}).",
+                    invIndex, button);
             ci.cancel();
         }
     }

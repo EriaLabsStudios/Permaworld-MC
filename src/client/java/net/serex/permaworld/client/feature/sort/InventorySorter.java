@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.config.PermaworldConfig;
+import net.serex.permaworld.client.debug.DebugLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,8 +77,11 @@ public final class InventorySorter {
         }
 
         if (snapshot.isEmpty()) {
+            DebugLog.log("sort", "No se detectaron slots del jugador en el menú actual.");
             return;
         }
+        DebugLog.log("sort", "Detectados {} slots del jugador ({} bloqueados).",
+                snapshot.size(), lockedMenuSlots.size());
 
         List<SortableSlot> target = SortStrategy.sort(snapshot, lockedMenuSlots);
 
@@ -110,6 +114,7 @@ public final class InventorySorter {
         }
 
         Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks);
+        DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (delay {} ms).", clicks, delayMs);
     }
 
     private static int findSource(List<SortableSlot> current, SortableSlot want, int from, Set<Integer> locked) {

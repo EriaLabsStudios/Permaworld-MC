@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.FeatureModule;
 
 import java.util.ArrayList;
@@ -66,15 +67,17 @@ public final class RightClickHarvest implements FeatureModule {
 
         String cropId = BuiltInRegistries.BLOCK.getKey(crop).toString();
         if (!HarvestRegistry.isSupported(cropId)) {
+            DebugLog.log("harvest", "Cultivo no soportado: {}.", cropId);
             return InteractionResult.PASS;
         }
 
         Inventory inv = local.getInventory();
         int seedSlot = CropReplanter.findSeedSlot(cropId, snapshotItemIds(inv));
         if (seedSlot < 0) {
-            // Sin semilla → dejamos pasar el click vanilla (no rompemos nada).
+            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla; click pasa a vanilla.", cropId);
             return InteractionResult.PASS;
         }
+        DebugLog.log("harvest", "Cosechando {} en {} con semilla del slot {}.", cropId, pos, seedSlot);
 
         // Necesitamos que la semilla esté en la mano principal para que
         // useItemOn la coloque. Si está fuera de la hotbar, hacemos pick.
@@ -94,10 +97,12 @@ public final class RightClickHarvest implements FeatureModule {
             boolean broken = gameMode.destroyBlock(pos);
             if (!broken) {
                 Permaworld.LOGGER.debug("destroyBlock devolvió false en {}", pos);
+                DebugLog.log("harvest", "destroyBlock falló en {}; se aborta.", pos);
                 return InteractionResult.PASS;
             }
             // 2) Replantar usando useItemOn sobre la misma cara/posición.
             gameMode.useItemOn(local, InteractionHand.MAIN_HAND, hit);
+            DebugLog.log("harvest", "Replantado {} en {}.", cropId, pos);
         } finally {
             if (restoreSelection) {
                 inv.setSelectedSlot(previousSelected);

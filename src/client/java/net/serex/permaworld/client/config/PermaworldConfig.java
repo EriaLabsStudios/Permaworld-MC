@@ -18,6 +18,13 @@ public class PermaworldConfig {
     /** Delay entre paquetes sintéticos (ms). Anti-cheat friendly. */
     public int packetDelayMs = 25;
 
+    /**
+     * Modo debug. Cuando está activo, las features emiten logs detallados con
+     * prefijo {@code [Permaworld][debug]} para diagnosticar problemas in-game
+     * (detección de teclas, clicks de slot, harvests, etc.).
+     */
+    public boolean debug = false;
+
     public static class SortConfig {
         public boolean enabled = true;
     }

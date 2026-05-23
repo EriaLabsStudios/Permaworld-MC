@@ -32,7 +32,16 @@ public class PermaworldClient implements ClientModInitializer {
             module.onClientInit();
         }
 
-        Permaworld.LOGGER.info("Permaworld client inicializado con {} módulo(s).", MODULES.size());
+        boolean debug = ConfigManager.get().config().debug;
+        Permaworld.LOGGER.info("Permaworld client inicializado con {} módulo(s). debug={}",
+                MODULES.size(), debug);
+        if (debug) {
+            Permaworld.LOGGER.info("[Permaworld][debug] Modo debug ACTIVO. Las features loguearan con prefijo [Permaworld][debug][<feature>].");
+            Permaworld.LOGGER.info("[Permaworld][debug] Keybinds registrados: sort='{}', quickDrop='{}', slotLockModifier='{}'.",
+                    Keybinds.sortInventory.saveString(),
+                    Keybinds.quickDropStack.saveString(),
+                    Keybinds.slotLockModifier.saveString());
+        }
     }
 
     private static void registerModules() {
