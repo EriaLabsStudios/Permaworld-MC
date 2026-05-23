@@ -35,7 +35,7 @@ public final class SortFeatureModule implements FeatureModule {
             }
             DebugLog.log("sort", "Ejecutando sort sobre containerMenu id={}.",
                     client.player.containerMenu.containerId);
-            InventorySorter.sortPlayerInventory();
+            InventorySorter.sort();
         });
     }
 }

@@ -36,7 +36,19 @@ public class PermaworldConfig {
 
     public static class SlotLockConfig {
         public boolean enabled = true;
-        /** Índices de slots bloqueados (referidos al inventario del jugador). */
+        /**
+         * Items marcados como "favoritos" por su id de registro (ej. "minecraft:diamond").
+         * El lock se aplica al stack que contiene ese item, no a un índice de slot, así
+         * que sobrevive a cambios de inventario, reordenaciones y al menú de Creativo
+         * (donde los slots no apuntan al Inventory del jugador en la mayoría de pestañas).
+         */
+        public Set<String> lockedItems = new HashSet<>();
+
+        /**
+         * @deprecated Se mantiene para no romper la deserialización de configs viejas.
+         * Ya no se usa: el lock pasó de índice-de-slot a item-id.
+         */
+        @Deprecated
         public Set<Integer> lockedSlots = new HashSet<>();
     }
 

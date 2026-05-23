@@ -4,7 +4,8 @@
   "package": "net.serex.permaworld.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "AbstractContainerScreenMixin"
+    "AbstractContainerScreenMixin",
+    "AbstractContainerScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,19 +1,24 @@
 package net.serex.permaworld.client.feature.sort;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
-import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.debug.DebugLog;
+import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
+import net.serex.permaworld.mixin.client.AbstractContainerScreenAccessor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -21,9 +26,15 @@ import java.util.Set;
  * Traduce el orden objetivo de {@link SortStrategy} en una secuencia de clicks
  * Vanilla ({@link ContainerInput#PICKUP}) sobre el menú abierto.
  * <p>
- * Solo opera sobre los slots del inventario del jugador (storage + hotbar) para evitar
- * tocar slots especiales de GUIs externas (cofres, hornos, etc.). Respeta los slots
- * marcados como bloqueados en la config.
+ * <strong>Sort contextual</strong> según el slot bajo el cursor:
+ * <ul>
+ *   <li>Hover sobre un slot del inventario del jugador → se ordena solo el
+ *       <em>storage</em> (índices 9-35), respetando la hotbar.</li>
+ *   <li>Hover sobre un slot de un contenedor externo (cofre, barril, etc.) →
+ *       se ordena ese contenedor entero.</li>
+ *   <li>Sin hover claro → storage del jugador.</li>
+ * </ul>
+ * Respeta los items marcados como favoritos en {@link SlotLockManager}.
  */
 public final class InventorySorter {
 
@@ -31,57 +42,94 @@ public final class InventorySorter {
     }
 
     /**
-     * Ordena el inventario del jugador en el menú actualmente abierto.
-     * No hace nada si no hay jugador, menú o slots aptos.
+     * Entry point del feature: decide el contexto según el hover y ordena.
      */
-    public static void sortPlayerInventory() {
+    public static void sort() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         MultiPlayerGameMode gameMode = mc.gameMode;
         if (player == null || gameMode == null) {
             return;
         }
-
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null) {
             return;
         }
 
-        Set<Integer> lockedInvIndices = ConfigManager.get().config().slotLock.lockedSlots;
+        Container hovered = hoveredContainer(mc);
+        Inventory playerInv = player.getInventory();
+        boolean sortPlayerStorage = (hovered == null) || (hovered == playerInv);
 
-        // Identifica los slots del menú que corresponden al inventario del jugador.
-        // En Vanilla, un Slot apunta a un Container; los del jugador apuntan a la
-        // Inventory del LocalPlayer.
-        Inventory inv = player.getInventory();
-        List<Integer> playerSlotIds = new ArrayList<>();
+        if (sortPlayerStorage) {
+            DebugLog.log("sort", "Contexto: storage del jugador (9-35).");
+            sortContainer(gameMode, menu, playerInv, /*onlyStorage=*/ true);
+        } else {
+            DebugLog.log("sort", "Contexto: contenedor externo {}.", hovered.getClass().getSimpleName());
+            sortContainer(gameMode, menu, hovered, /*onlyStorage=*/ false);
+        }
+    }
+
+    /**
+     * Devuelve el {@link Container} del slot bajo el cursor, o {@code null} si
+     * no hay screen de contenedor abierta o no hay hover sobre un slot.
+     */
+    private static Container hoveredContainer(Minecraft mc) {
+        Screen screen = mc.screen;
+        if (!(screen instanceof AbstractContainerScreen<?> acs)) {
+            return null;
+        }
+        Slot hovered = ((AbstractContainerScreenAccessor) acs).permaworld$getHoveredSlot();
+        if (hovered == null) return null;
+        return hovered.container;
+    }
+
+    /**
+     * Ordena todos los slots del {@code menu} cuyo {@code slot.container} sea
+     * {@code targetContainer}. Si {@code onlyStorage} es true y el contenedor es
+     * el {@link Inventory} del jugador, se limita a los índices 9..35 (excluye
+     * hotbar 0..8, armadura y offhand).
+     */
+    private static void sortContainer(MultiPlayerGameMode gameMode,
+                                      AbstractContainerMenu menu,
+                                      Container targetContainer,
+                                      boolean onlyStorage) {
+        List<Integer> menuSlotIds = new ArrayList<>();
         List<SortableSlot> snapshot = new ArrayList<>();
-        Set<Integer> lockedMenuSlots = new java.util.HashSet<>();
+        Set<Integer> lockedSnapshotIdx = new HashSet<>();
 
         for (int i = 0; i < menu.slots.size(); i++) {
             Slot slot = menu.slots.get(i);
-            if (slot.container != inv) {
+            if (slot.container != targetContainer) continue;
+            int containerSlot = slot.getContainerSlot();
+
+            if (onlyStorage && targetContainer instanceof Inventory) {
+                // Solo storage del jugador: 9..35. Excluye hotbar (0..8), armadura y offhand.
+                if (containerSlot < 9 || containerSlot >= Inventory.INVENTORY_SIZE) {
+                    continue;
+                }
+            } else if (containerSlot < 0) {
+                // Slot virtual (output, etc.) — saltar por seguridad.
                 continue;
             }
-            int invIndex = slot.getContainerSlot();
-            // Ignora armadura y offhand: solo 0..35 (hotbar + storage).
-            if (invIndex < 0 || invIndex >= Inventory.INVENTORY_SIZE) {
-                continue;
-            }
-            playerSlotIds.add(i);
+
+            menuSlotIds.add(i);
             snapshot.add(toSortable(slot.getItem()));
-            if (lockedInvIndices.contains(invIndex)) {
-                lockedMenuSlots.add(snapshot.size() - 1);
+            // Lock por item id (favoritos): si el item del slot está marcado, no se mueve.
+            if (SlotLockManager.isLocked(slot.getItem())) {
+                lockedSnapshotIdx.add(snapshot.size() - 1);
             }
         }
 
         if (snapshot.isEmpty()) {
-            DebugLog.log("sort", "No se detectaron slots del jugador en el menú actual.");
+            DebugLog.log("sort", "No se detectaron slots aptos para ordenar.");
             return;
         }
-        DebugLog.log("sort", "Detectados {} slots del jugador ({} bloqueados).",
-                snapshot.size(), lockedMenuSlots.size());
+        DebugLog.log("sort", "Detectados {} slots ({} con item favorito y por tanto bloqueados).",
+                snapshot.size(), lockedSnapshotIdx.size());
 
-        List<SortableSlot> target = SortStrategy.sort(snapshot, lockedMenuSlots);
+        List<SortableSlot> target = SortStrategy.sort(snapshot, lockedSnapshotIdx);
+        Set<Integer> lockedMenuSlots = lockedSnapshotIdx; // alias para legibilidad
+        List<Integer> playerSlotIds = menuSlotIds;        // alias para reutilizar el bloque inferior
 
         // Selección-sort emitiendo swaps con 3 PICKUPs por movimiento.
         // Trabajamos sobre una copia mutable de snapshot para seguir el estado lógico.

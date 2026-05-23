@@ -35,30 +35,33 @@ public abstract class AbstractContainerScreenMixin {
     )
     private void permaworld$slotLock$onSlotClicked(Slot slot, int slotId, int button, ContainerInput input, CallbackInfo ci) {
         DebugLog.log("slotlock", "slotClicked HEAD: slotId={} button={} input={} slot.container={}.",
-                slotId, button, input, slot == null ? "null" : slot.container.getClass().getSimpleName());
+                slotId, button, input, slot == null ? "null" : (slot.container == null ? "null" : slot.container.getClass().getSimpleName()));
         if (!ConfigManager.get().config().slotLock.enabled) {
             DebugLog.log("slotlock", "Feature desactivada en config; se ignora.");
             return;
         }
+        if (slot == null) return;
 
-        int invIndex = SlotLockManager.playerInventoryIndex(slot);
-        DebugLog.log("slotlock", "playerInventoryIndex={} modifierDown={}.",
-                invIndex, SlotLockManager.modifierDown());
-        if (invIndex < 0) return; // slot fuera del inventario del jugador → no aplica
+        boolean modifier = SlotLockManager.modifierDown();
+        String itemId = SlotLockManager.itemIdOf(slot.getItem());
+        DebugLog.log("slotlock", "itemId={} modifierDown={}.", itemId, modifier);
 
-        if (SlotLockManager.modifierDown()) {
-            // ALT (o el modificador configurado) + click sobre un slot del inventario → toggle lock.
-            SlotLockManager.toggle(invIndex);
-            DebugLog.log("slotlock", "Toggle lock en slot inv={} (locked ahora={}).",
-                    invIndex, SlotLockManager.isLocked(invIndex));
+        if (modifier) {
+            // ALT + click → toggle lock del item que haya en el slot.
+            // No restringimos al Inventory del jugador: así también funciona en
+            // Creativo (donde los slots no apuntan a player.getInventory()) y
+            // sobre cofres/contenedores externos para marcar el item como favorito.
+            String toggled = SlotLockManager.toggle(slot);
+            DebugLog.log("slotlock", "Toggle lock sobre item={} (locked ahora={}).",
+                    toggled, SlotLockManager.isLockedId(toggled));
             ci.cancel();
             return;
         }
 
-        if (SlotLockManager.isLocked(invIndex)) {
+        if (SlotLockManager.isSlotLocked(slot)) {
             // Bloqueado: cancelamos cualquier interacción Vanilla con el slot.
-            DebugLog.log("slotlock", "Click cancelado en slot bloqueado inv={} (button={}).",
-                    invIndex, button);
+            DebugLog.log("slotlock", "Click cancelado en slot con item bloqueado item={} (button={}).",
+                    itemId, button);
             ci.cancel();
         }
     }
@@ -69,16 +72,14 @@ public abstract class AbstractContainerScreenMixin {
     )
     private void permaworld$slotLock$onExtractSlot(GuiGraphicsExtractor extractor, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         if (!ConfigManager.get().config().slotLock.enabled) return;
-
-        int invIndex = SlotLockManager.playerInventoryIndex(slot);
-        if (invIndex < 0) return;
+        if (slot == null) return;
 
         boolean modifier = SlotLockManager.modifierDown();
-        boolean locked = SlotLockManager.isLocked(invIndex);
+        boolean locked = SlotLockManager.isSlotLocked(slot);
 
         // Feedback "modo favorito": mientras se mantiene ALT, tintamos
-        // ligeramente los slots del inventario del jugador para indicar que
-        // estamos en modo de marcar favoritos. Color ámbar semitransparente.
+        // ligeramente todos los slots para indicar que estamos en modo de
+        // marcar/desmarcar favoritos. Color ámbar semitransparente.
         if (modifier) {
             extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x40FFC400);
         }
