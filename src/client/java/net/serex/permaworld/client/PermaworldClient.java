@@ -4,6 +4,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.feature.FeatureModule;
+import net.serex.permaworld.client.feature.sort.SortFeatureModule;
 import net.serex.permaworld.client.keybind.Keybinds;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class PermaworldClient implements ClientModInitializer {
     }
 
     private static void registerModules() {
+        MODULES.add(new SortFeatureModule());
         // Las features se irán enganchando aquí en milestones siguientes.
     }
 }
