@@ -55,9 +55,10 @@ public final class SortStrategy {
         // 2. Fusiona stacks del mismo item respetando maxStack.
         List<SortableSlot> merged = mergeStacks(movable);
 
-        // 3. Ordena alfabéticamente por itemId, stacks más llenos primero a igualdad de id.
+        // 3. Ordena por itemId DESCENDENTE (a petición del usuario: el orden
+        //    ascendente sentía "al revés"). A igualdad de id, stacks más llenos primero.
         merged.sort(Comparator
-                .comparing((SortableSlot s) -> s.itemId())
+                .comparing((SortableSlot s) -> s.itemId()).reversed()
                 .thenComparing(Comparator.comparingInt(SortableSlot::count).reversed()));
 
         // 4. Coloca el resultado en los huecos libres; el resto quedan vacíos.

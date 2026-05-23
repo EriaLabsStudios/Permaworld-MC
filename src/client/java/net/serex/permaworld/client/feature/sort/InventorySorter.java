@@ -11,7 +11,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
-import net.serex.permaworld.client.config.PermaworldConfig;
 import net.serex.permaworld.client.debug.DebugLog;
 
 import java.util.ArrayList;
@@ -48,8 +47,7 @@ public final class InventorySorter {
             return;
         }
 
-        PermaworldConfig cfg = ConfigManager.get().config();
-        Set<Integer> lockedInvIndices = cfg.slotLock.lockedSlots;
+        Set<Integer> lockedInvIndices = ConfigManager.get().config().slotLock.lockedSlots;
 
         // Identifica los slots del menú que corresponden al inventario del jugador.
         // En Vanilla, un Slot apunta a un Container; los del jugador apuntan a la
@@ -87,8 +85,10 @@ public final class InventorySorter {
 
         // Selección-sort emitiendo swaps con 3 PICKUPs por movimiento.
         // Trabajamos sobre una copia mutable de snapshot para seguir el estado lógico.
+        // IMPORTANTE: no metemos sleep entre paquetes. Antes el sort hacía Thread.sleep
+        // en el client thread (25ms x 3 pickups por swap), lo que congelaba el cliente
+        // entero. Ahora se emiten todos los pickups seguidos en el mismo tick.
         List<SortableSlot> current = new ArrayList<>(snapshot);
-        int delayMs = Math.max(0, cfg.packetDelayMs);
         int clicks = 0;
 
         for (int i = 0; i < current.size(); i++) {
@@ -110,11 +110,10 @@ public final class InventorySorter {
             current.set(j, tmp);
 
             clicks += 3;
-            sleep(delayMs);
         }
 
         Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks);
-        DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (delay {} ms).", clicks, delayMs);
+        DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (sin delay).", clicks);
     }
 
     private static int findSource(List<SortableSlot> current, SortableSlot want, int from, Set<Integer> locked) {
@@ -134,7 +133,7 @@ public final class InventorySorter {
 
     /**
      * Intercambia dos slots emitiendo 3 PICKUPs: pick(a) → pick(b) → pick(a).
-     * Respeta {@code packetDelayMs} entre clicks.
+     * Sin delay entre paquetes para no congelar el client thread.
      */
     private static void swap(MultiPlayerGameMode gameMode, int containerId, int slotA, int slotB) {
         Minecraft mc = Minecraft.getInstance();
@@ -142,9 +141,7 @@ public final class InventorySorter {
         if (player == null) return;
 
         pickup(gameMode, containerId, slotA, player);
-        sleep(ConfigManager.get().config().packetDelayMs);
         pickup(gameMode, containerId, slotB, player);
-        sleep(ConfigManager.get().config().packetDelayMs);
         pickup(gameMode, containerId, slotA, player);
     }
 
@@ -161,12 +158,4 @@ public final class InventorySorter {
         return new SortableSlot(id, stack.getCount(), stack.getMaxStackSize());
     }
 
-    private static void sleep(int ms) {
-        if (ms <= 0) return;
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
-        }
-    }
 }

@@ -40,11 +40,12 @@ class SortStrategyTest {
         List<SortableSlot> result = SortStrategy.sort(input, Set.of());
 
         assertEquals(5, result.size());
-        // 60 manzanas → un stack de 60, y 15 sticks → un stack de 15.
-        assertEquals("minecraft:apple", result.get(0).itemId());
-        assertEquals(60, result.get(0).count());
-        assertEquals("minecraft:stick", result.get(1).itemId());
-        assertEquals(15, result.get(1).count());
+        // Orden DESCENDENTE por itemId: stick antes que apple.
+        // 15 sticks → un stack de 15, y 60 manzanas → un stack de 60.
+        assertEquals("minecraft:stick", result.get(0).itemId());
+        assertEquals(15, result.get(0).count());
+        assertEquals("minecraft:apple", result.get(1).itemId());
+        assertEquals(60, result.get(1).count());
         // El resto vacío.
         for (int i = 2; i < result.size(); i++) {
             assertTrue(result.get(i).isEmpty(), "slot " + i + " debería estar vacío");
@@ -64,11 +65,11 @@ class SortStrategyTest {
 
         // El pico sigue en el slot 1 sin tocarse.
         assertEquals("minecraft:iron_pickaxe", result.get(1).itemId());
-        // El resto reordenado: apple (alfabético) antes que stick.
-        assertEquals("minecraft:apple", result.get(0).itemId());
-        assertEquals(5, result.get(0).count());
-        assertEquals("minecraft:stick", result.get(2).itemId());
-        assertEquals(3, result.get(2).count());
+        // El resto reordenado DESCENDENTE: stick antes que apple.
+        assertEquals("minecraft:stick", result.get(0).itemId());
+        assertEquals(3, result.get(0).count());
+        assertEquals("minecraft:apple", result.get(2).itemId());
+        assertEquals(5, result.get(2).count());
         assertTrue(result.get(3).isEmpty());
     }
 
@@ -109,8 +110,8 @@ class SortStrategyTest {
 
         assertEquals("minecraft:iron_pickaxe", result.get(0).itemId());
         assertEquals("minecraft:iron_pickaxe", result.get(3).itemId());
-        // Entre medias, apple antes que stick.
-        assertEquals("minecraft:apple", result.get(1).itemId());
-        assertEquals("minecraft:stick", result.get(2).itemId());
+        // Entre medias, orden DESCENDENTE: stick antes que apple.
+        assertEquals("minecraft:stick", result.get(1).itemId());
+        assertEquals("minecraft:apple", result.get(2).itemId());
     }
 }
