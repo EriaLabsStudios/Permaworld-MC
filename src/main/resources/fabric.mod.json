@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "permaworld",
+  "version": "${version}",
+  "name": "Eria Permaworld",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/permaworld/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "net.serex.permaworld.client.PermaworldDataGenerator"
+    ],
+    "client": [
+      "net.serex.permaworld.client.PermaworldClient"
+    ],
+    "main": [
+      "net.serex.permaworld.Permaworld"
+    ]
+  },
+  "mixins": [
+    "permaworld.mixins.json",
+    {
+      "config": "permaworld.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
