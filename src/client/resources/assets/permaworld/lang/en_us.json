@@ -1,0 +1,11 @@
+{
+  "key.category.permaworld.permaworld": "Permaworld",
+  "key.permaworld.sort_inventory": "Sort inventory",
+  "key.permaworld.quick_drop_stack": "Quick drop stack",
+  "key.permaworld.slot_lock_modifier": "Slot lock modifier",
+  "permaworld.feedback.no_chest_nearby": "No matching chest nearby",
+  "permaworld.feedback.items_moved": "Moved %s items",
+  "permaworld.feedback.trade_disabled": "Trade unavailable",
+  "permaworld.trader.quick_buy": "Quick Buy",
+  "permaworld.trader.favorite": "Favorite"
+}
