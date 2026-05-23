@@ -34,9 +34,16 @@ public abstract class AbstractContainerScreenMixin {
             cancellable = true
     )
     private void permaworld$slotLock$onSlotClicked(Slot slot, int slotId, int button, ContainerInput input, CallbackInfo ci) {
-        if (!ConfigManager.get().config().slotLock.enabled) return;
+        DebugLog.log("slotlock", "slotClicked HEAD: slotId={} button={} input={} slot.container={}.",
+                slotId, button, input, slot == null ? "null" : slot.container.getClass().getSimpleName());
+        if (!ConfigManager.get().config().slotLock.enabled) {
+            DebugLog.log("slotlock", "Feature desactivada en config; se ignora.");
+            return;
+        }
 
         int invIndex = SlotLockManager.playerInventoryIndex(slot);
+        DebugLog.log("slotlock", "playerInventoryIndex={} modifierDown={}.",
+                invIndex, SlotLockManager.modifierDown());
         if (invIndex < 0) return; // slot fuera del inventario del jugador → no aplica
 
         if (SlotLockManager.modifierDown()) {
@@ -65,11 +72,27 @@ public abstract class AbstractContainerScreenMixin {
 
         int invIndex = SlotLockManager.playerInventoryIndex(slot);
         if (invIndex < 0) return;
-        if (!SlotLockManager.isLocked(invIndex)) return;
 
-        // 16x16 sobre el slot. La textura tiene resolución nativa 16x16.
+        boolean modifier = SlotLockManager.modifierDown();
+        boolean locked = SlotLockManager.isLocked(invIndex);
+
+        // Feedback "modo favorito": mientras se mantiene ALT, tintamos
+        // ligeramente los slots del inventario del jugador para indicar que
+        // estamos en modo de marcar favoritos. Color ámbar semitransparente.
+        if (modifier) {
+            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x40FFC400);
+        }
+
+        if (!locked) return;
+
+        // Estrella pequeña (8x8) en la esquina superior derecha del slot.
+        // La textura es 16x16 nativa; la sobrecarga de blit con uWidth/vHeight
+        // permite escalarla al tamaño deseado.
         RenderPipeline pipeline = RenderPipelines.GUI_TEXTURED;
+        int size = 8;
+        int x = slot.x + 16 - size + 1; // +1 para que sobresalga un poco a la derecha
+        int y = slot.y - 1;             // -1 para que sobresalga un poco arriba
         extractor.blit(pipeline, SlotLockManager.LOCK_TEXTURE,
-                slot.x, slot.y, 0.0F, 0.0F, 16, 16, 16, 16);
+                x, y, 0.0F, 0.0F, size, size, 16, 16, 16, 16);
     }
 }
