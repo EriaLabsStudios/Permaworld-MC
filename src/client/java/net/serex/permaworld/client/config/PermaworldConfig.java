@@ -1,6 +1,8 @@
 package net.serex.permaworld.client.config;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -55,6 +57,13 @@ public class PermaworldConfig {
 
     public static class SlotLockConfig {
         public boolean enabled = true;
+        public Map<Integer, SlotMarkConfig> playerSlots = new HashMap<>();
+
+        public static class SlotMarkConfig {
+            public String mode = "favorite";
+            public String itemId = null;
+        }
+
         /**
          * Items marcados como "favoritos" por su id de registro (ej. "minecraft:diamond").
          * El lock se aplica al stack que contiene ese item, no a un índice de slot, así

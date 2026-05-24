@@ -15,9 +15,11 @@ import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
+import net.serex.permaworld.client.feature.slotlock.SlotLockManager.SlotMark;
 import net.serex.permaworld.mixin.client.AbstractContainerScreenAccessor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -148,7 +150,8 @@ public final class InventorySorter {
                                       SortMode mode) {
         List<Integer> menuSlotIds = new ArrayList<>();
         List<SortableSlot> snapshot = new ArrayList<>();
-        Set<Integer> lockedSnapshotIdx = new HashSet<>();
+        Set<Integer> markedSnapshotIdx = new HashSet<>();
+        Map<Integer, SlotMark> marksBySnapshotIdx = new HashMap<>();
 
         for (int i = 0; i < menu.slots.size(); i++) {
             Slot slot = menu.slots.get(i);
@@ -167,9 +170,11 @@ public final class InventorySorter {
 
             menuSlotIds.add(i);
             snapshot.add(toSortable(slot.getItem()));
-            // Lock por item id (favoritos): si el item del slot está marcado, no se mueve.
-            if (SlotLockManager.isLocked(slot.getItem())) {
-                lockedSnapshotIdx.add(snapshot.size() - 1);
+            SlotMark mark = SlotLockManager.markForSlot(slot);
+            if (mark != null) {
+                int snapshotIdx = snapshot.size() - 1;
+                markedSnapshotIdx.add(snapshotIdx);
+                marksBySnapshotIdx.put(snapshotIdx, mark);
             }
         }
 
@@ -177,11 +182,10 @@ public final class InventorySorter {
             DebugLog.log("sort", "No se detectaron slots aptos para ordenar.");
             return;
         }
-        DebugLog.log("sort", "Detectados {} slots ({} con item favorito y por tanto bloqueados).",
-                snapshot.size(), lockedSnapshotIdx.size());
+        DebugLog.log("sort", "Detectados {} slots ({} reservados por Favorito/Lock).",
+                snapshot.size(), markedSnapshotIdx.size());
 
-        List<SortableSlot> target = SortStrategy.sort(snapshot, lockedSnapshotIdx, mode);
-        Set<Integer> lockedMenuSlots = lockedSnapshotIdx; // alias para legibilidad
+        List<SortableSlot> target = sortRespectingSlotMarks(snapshot, marksBySnapshotIdx, mode);
         List<Integer> playerSlotIds = menuSlotIds;        // alias para reutilizar el bloque inferior
 
         // Selección-sort emitiendo swaps con 3 PICKUPs por movimiento.
@@ -194,14 +198,11 @@ public final class InventorySorter {
         int clicks = 0;
 
         for (int i = 0; i < current.size(); i++) {
-            if (lockedMenuSlots.contains(i)) {
-                continue;
-            }
             if (equalSlots(current.get(i), target.get(i))) {
                 continue;
             }
             // Busca en j > i un slot que coincida con target[i] (y que no esté bloqueado).
-            int j = findSource(current, target.get(i), i + 1, lockedMenuSlots);
+            int j = findSource(current, target.get(i), i + 1, Set.of());
             if (j < 0) {
                 continue;
             }
@@ -219,6 +220,66 @@ public final class InventorySorter {
         Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks);
         DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (sin delay).", clicks);
         SortFeedback.show(mode, menu.containerId, SortFeedback.touchedOrFallback(touchedMenuSlots, menuSlotIds));
+    }
+
+    private static List<SortableSlot> sortRespectingSlotMarks(List<SortableSlot> current,
+                                                              Map<Integer, SlotMark> marksBySnapshotIdx,
+                                                              SortMode mode) {
+        int size = current.size();
+        SortableSlot[] target = new SortableSlot[size];
+        Set<Integer> used = new HashSet<>();
+
+        for (Map.Entry<Integer, SlotMark> entry : marksBySnapshotIdx.entrySet()) {
+            int targetIdx = entry.getKey();
+            String reservedItemId = entry.getValue().itemId();
+            if (reservedItemId == null) {
+                target[targetIdx] = SortableSlot.empty();
+                continue;
+            }
+
+            int sourceIdx = findFirstUnusedItem(current, reservedItemId, used);
+            if (sourceIdx >= 0) {
+                target[targetIdx] = current.get(sourceIdx);
+                used.add(sourceIdx);
+            } else {
+                target[targetIdx] = SortableSlot.empty();
+            }
+        }
+
+        List<SortableSlot> movable = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            if (used.contains(i)) {
+                continue;
+            }
+            SortableSlot slot = current.get(i);
+            if (!slot.isEmpty()) {
+                movable.add(slot);
+            }
+        }
+
+        movable = SortStrategy.sort(movable, Set.of(), mode);
+        int movableIdx = 0;
+        for (int i = 0; i < size; i++) {
+            if (target[i] != null) {
+                continue;
+            }
+            target[i] = movableIdx < movable.size() ? movable.get(movableIdx++) : SortableSlot.empty();
+        }
+
+        return List.of(target);
+    }
+
+    private static int findFirstUnusedItem(List<SortableSlot> current, String itemId, Set<Integer> used) {
+        for (int i = 0; i < current.size(); i++) {
+            if (used.contains(i)) {
+                continue;
+            }
+            SortableSlot slot = current.get(i);
+            if (!slot.isEmpty() && slot.itemId().equals(itemId)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int findSource(List<SortableSlot> current, SortableSlot want, int from, Set<Integer> locked) {

@@ -1,16 +1,22 @@
 package net.serex.permaworld.client.feature.slotlock;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.config.PermaworldConfig;
 import net.serex.permaworld.client.keybind.KeyInput;
 import net.serex.permaworld.client.keybind.Keybinds;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -31,6 +37,8 @@ public final class SlotLockManager {
     public static final Identifier LOCK_TEXTURE =
             Identifier.fromNamespaceAndPath(Permaworld.MOD_ID, "textures/gui/slot_lock.png");
 
+    private static SlotMarkMode activeMode = null;
+
     private SlotLockManager() {
     }
 
@@ -38,10 +46,33 @@ public final class SlotLockManager {
         return ConfigManager.get().config().slotLock.lockedItems;
     }
 
+    private static Map<Integer, PermaworldConfig.SlotLockConfig.SlotMarkConfig> slotMarks() {
+        if (ConfigManager.get().config().slotLock.playerSlots == null) {
+            ConfigManager.get().config().slotLock.playerSlots = new java.util.HashMap<>();
+        }
+        return ConfigManager.get().config().slotLock.playerSlots;
+    }
+
     /** Devuelve el item id del stack, o {@code null} si está vacío. */
     public static String itemIdOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return null;
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    }
+
+    public static SlotMarkMode activeMode() {
+        return activeMode;
+    }
+
+    public static void toggleActiveMode(SlotMarkMode mode) {
+        activeMode = activeMode == mode ? null : mode;
+    }
+
+    public static void clearActiveMode() {
+        activeMode = null;
+    }
+
+    public static boolean isActiveMode(SlotMarkMode mode) {
+        return activeMode == mode;
     }
 
     /** ¿Está el item del stack bloqueado? */
@@ -60,7 +91,107 @@ public final class SlotLockManager {
      */
     public static boolean isSlotLocked(Slot slot) {
         if (slot == null) return false;
-        return isLocked(slot.getItem());
+        SlotMark mark = markForSlot(slot);
+        return mark != null && mark.mode() == SlotMarkMode.LOCK;
+    }
+
+    public static boolean isSlotFavorite(Slot slot) {
+        SlotMark mark = markForSlot(slot);
+        return mark != null && mark.mode() == SlotMarkMode.FAVORITE;
+    }
+
+    public static boolean isMarked(Slot slot) {
+        return markForSlot(slot) != null;
+    }
+
+    public static SlotMark markForSlot(Slot slot) {
+        if (!isPlayerInventorySlot(slot)) {
+            return null;
+        }
+        return markForInventorySlot(slot.getContainerSlot());
+    }
+
+    public static SlotMark markForInventorySlot(int inventorySlot) {
+        PermaworldConfig.SlotLockConfig.SlotMarkConfig raw = slotMarks().get(inventorySlot);
+        if (raw == null) {
+            return null;
+        }
+        SlotMarkMode mode = SlotMarkMode.fromConfig(raw.mode);
+        if (mode == null) {
+            return null;
+        }
+        return new SlotMark(mode, raw.itemId);
+    }
+
+    public static boolean isPlayerInventorySlot(Slot slot) {
+        Minecraft mc = Minecraft.getInstance();
+        if (slot == null || mc.player == null) {
+            return false;
+        }
+        return slot.container == mc.player.getInventory()
+                && slot.getContainerSlot() >= 0
+                && slot.getContainerSlot() < Inventory.INVENTORY_SIZE;
+    }
+
+    public static boolean toggleSlotMark(Slot slot, SlotMarkMode mode) {
+        if (!isPlayerInventorySlot(slot)) {
+            return false;
+        }
+
+        int inventorySlot = slot.getContainerSlot();
+        SlotMark previous = markForInventorySlot(inventorySlot);
+        String itemId = itemIdOf(slot.getItem());
+        if (itemId == null && previous != null) {
+            itemId = previous.itemId();
+        }
+
+        if (previous != null && previous.mode() == mode) {
+            slotMarks().remove(inventorySlot);
+            ConfigManager.get().save();
+            play(mode);
+            return true;
+        }
+
+        if (mode == SlotMarkMode.FAVORITE && itemId == null) {
+            return false;
+        }
+
+        PermaworldConfig.SlotLockConfig.SlotMarkConfig raw = new PermaworldConfig.SlotLockConfig.SlotMarkConfig();
+        raw.mode = mode.configName();
+        raw.itemId = itemId;
+        slotMarks().put(inventorySlot, raw);
+        ConfigManager.get().save();
+        play(mode);
+        return true;
+    }
+
+    public static boolean canPlaceInReservedSlot(Slot slot, ItemStack carried) {
+        SlotMark mark = markForSlot(slot);
+        if (mark == null || mark.mode() != SlotMarkMode.FAVORITE) {
+            return true;
+        }
+        if (!slot.getItem().isEmpty()) {
+            return true;
+        }
+        String reserved = mark.itemId();
+        String carriedId = itemIdOf(carried);
+        return reserved == null || carriedId == null || reserved.equals(carriedId);
+    }
+
+    public static ItemStack ghostStack(Slot slot) {
+        SlotMark mark = markForSlot(slot);
+        if (mark == null || mark.itemId() == null || !slot.getItem().isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        try {
+            Item item = BuiltInRegistries.ITEM.getValue(Identifier.parse(mark.itemId()));
+            if (item == null) {
+                return ItemStack.EMPTY;
+            }
+            return new ItemStack(item);
+        } catch (Exception ignored) {
+            return ItemStack.EMPTY;
+        }
     }
 
     /**
@@ -79,6 +210,18 @@ public final class SlotLockManager {
         }
         ConfigManager.get().save();
         return id;
+    }
+
+    private static void play(SlotMarkMode mode) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getSoundManager() == null) {
+            return;
+        }
+        if (mode == SlotMarkMode.LOCK) {
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHEST_LOCKED, 0.75F));
+        } else {
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.45F));
+        }
     }
 
     /**
@@ -113,5 +256,33 @@ public final class SlotLockManager {
 
     private static boolean altFallbackDown(java.util.function.IntPredicate keyDown) {
         return keyDown.test(GLFW.GLFW_KEY_LEFT_ALT) || keyDown.test(GLFW.GLFW_KEY_RIGHT_ALT);
+    }
+
+    public enum SlotMarkMode {
+        FAVORITE("favorite"),
+        LOCK("lock");
+
+        private final String configName;
+
+        SlotMarkMode(String configName) {
+            this.configName = configName;
+        }
+
+        public String configName() {
+            return configName;
+        }
+
+        public static SlotMarkMode fromConfig(String value) {
+            if ("lock".equals(value)) {
+                return LOCK;
+            }
+            if ("favorite".equals(value)) {
+                return FAVORITE;
+            }
+            return null;
+        }
+    }
+
+    public record SlotMark(SlotMarkMode mode, String itemId) {
     }
 }

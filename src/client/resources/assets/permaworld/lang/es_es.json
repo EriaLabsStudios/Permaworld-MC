@@ -12,6 +12,8 @@
   "permaworld.sort.feedback.name": "Ordenado por nombre",
   "permaworld.sort.feedback.count": "Ordenado por cantidad",
   "permaworld.sort.feedback.category": "Ordenado por categoría",
+  "permaworld.slotmark.tooltip.favorite": "Marcar slot como favorito",
+  "permaworld.slotmark.tooltip.lock": "Bloquear slot",
   "permaworld.config.title": "Eria Permaworld",
   "permaworld.config.sort.enabled": "Ordenar inventario: %s",
   "permaworld.config.sort.button_size": "Tamaño botones: %s px",
