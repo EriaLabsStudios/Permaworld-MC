@@ -3,10 +3,7 @@ package net.serex.permaworld.mixin.client;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -47,9 +44,6 @@ public abstract class AbstractContainerScreenMixin {
     @Shadow
     protected int imageWidth;
 
-    @Shadow
-    protected abstract <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget);
-
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$sort$addButtons(CallbackInfo ci) {
         if (!ConfigManager.get().config().sort.enabled) {
@@ -73,7 +67,7 @@ public abstract class AbstractContainerScreenMixin {
                 .bounds(x, y, size, size)
                 .tooltip(Tooltip.create(Component.translatable("permaworld.sort.tooltip." + key)))
                 .build();
-        this.addRenderableWidget(button);
+        ((ScreenAccessor) this).permaworld$addRenderableWidget(button);
     }
 
     @Inject(
