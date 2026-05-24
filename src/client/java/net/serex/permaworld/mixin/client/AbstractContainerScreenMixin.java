@@ -44,6 +44,9 @@ public abstract class AbstractContainerScreenMixin {
     @Shadow
     protected int imageWidth;
 
+    @Shadow
+    protected int imageHeight;
+
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$sort$addButtons(CallbackInfo ci) {
         if (!ConfigManager.get().config().sort.enabled) {
@@ -53,17 +56,30 @@ public abstract class AbstractContainerScreenMixin {
         int buttonSize = 16;
         int gap = 2;
         int totalWidth = buttonSize * 3 + gap * 2;
-        int x = this.leftPos + this.imageWidth - totalWidth;
-        int y = Math.max(4, this.topPos - buttonSize - 2);
+        int x = this.leftPos + this.imageWidth - totalWidth - 8;
+        int y = sortButtonY(buttonSize);
 
         addSortButton(x, y, buttonSize, "A", SortMode.NAME);
         addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
         addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
     }
 
+    private int sortButtonY(int buttonSize) {
+        String screenName = ((Object) this).getClass().getSimpleName();
+        int y;
+        if (screenName.contains("InventoryScreen")
+                || screenName.contains("CreativeModeInventoryScreen")
+                || screenName.contains("CraftingScreen")) {
+            y = this.topPos + 70;
+        } else {
+            y = this.topPos + 8;
+        }
+        return Math.min(y, this.topPos + this.imageHeight - buttonSize - 6);
+    }
+
     private void addSortButton(int x, int y, int size, String label, SortMode mode) {
         String key = SortFeedback.key(mode);
-        Button button = Button.builder(Component.literal(label), ignored -> InventorySorter.sort(mode))
+        Button button = Button.builder(Component.literal(label), ignored -> InventorySorter.sortFromButton(mode))
                 .bounds(x, y, size, size)
                 .tooltip(Tooltip.create(Component.translatable("permaworld.sort.tooltip." + key)))
                 .build();

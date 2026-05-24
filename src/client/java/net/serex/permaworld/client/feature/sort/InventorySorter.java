@@ -19,7 +19,9 @@ import net.serex.permaworld.mixin.client.AbstractContainerScreenAccessor;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -49,6 +51,14 @@ public final class InventorySorter {
     }
 
     public static void sort(SortMode mode) {
+        sort(mode, SortTarget.CONTEXTUAL_HOVER);
+    }
+
+    public static void sortFromButton(SortMode mode) {
+        sort(mode, SortTarget.SCREEN_PRIMARY);
+    }
+
+    public static void sort(SortMode mode, SortTarget target) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         MultiPlayerGameMode gameMode = mc.gameMode;
@@ -60,8 +70,20 @@ public final class InventorySorter {
             return;
         }
 
-        Container hovered = hoveredContainer(mc);
         Inventory playerInv = player.getInventory();
+        if (target == SortTarget.SCREEN_PRIMARY) {
+            Container external = primaryExternalContainer(menu, playerInv);
+            if (external != null) {
+                DebugLog.log("sort", "Contexto botón: contenedor externo {}.", external.getClass().getSimpleName());
+                sortContainer(gameMode, menu, external, /*onlyStorage=*/ false, mode);
+            } else {
+                DebugLog.log("sort", "Contexto botón: storage del jugador (9-35).");
+                sortContainer(gameMode, menu, playerInv, /*onlyStorage=*/ true, mode);
+            }
+            return;
+        }
+
+        Container hovered = hoveredContainer(mc);
         boolean sortPlayerStorage = (hovered == null) || (hovered == playerInv);
 
         if (sortPlayerStorage) {
@@ -85,6 +107,32 @@ public final class InventorySorter {
         Slot hovered = ((AbstractContainerScreenAccessor) acs).permaworld$getHoveredSlot();
         if (hovered == null) return null;
         return hovered.container;
+    }
+
+    private static Container primaryExternalContainer(AbstractContainerMenu menu, Inventory playerInv) {
+        String menuName = menu.getClass().getSimpleName();
+        if (menuName.contains("InventoryMenu") || menuName.contains("CraftingMenu")) {
+            return null;
+        }
+
+        Map<Container, Integer> candidates = new IdentityHashMap<>();
+        for (Slot slot : menu.slots) {
+            if (slot.container == playerInv || slot.getContainerSlot() < 0) {
+                continue;
+            }
+            candidates.merge(slot.container, 1, Integer::sum);
+        }
+
+        Container best = null;
+        int bestSize = 0;
+        for (Map.Entry<Container, Integer> entry : candidates.entrySet()) {
+            int size = entry.getValue();
+            if (size >= 9 && size > bestSize) {
+                best = entry.getKey();
+                bestSize = size;
+            }
+        }
+        return best;
     }
 
     /**
