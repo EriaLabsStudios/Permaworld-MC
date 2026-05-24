@@ -2,14 +2,24 @@ package net.serex.permaworld.mixin.client;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
+import net.serex.permaworld.client.feature.sort.InventorySorter;
+import net.serex.permaworld.client.feature.sort.SortFeedback;
+import net.serex.permaworld.client.feature.sort.SortMode;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -27,6 +37,44 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin {
+
+    @Shadow
+    protected int leftPos;
+
+    @Shadow
+    protected int topPos;
+
+    @Shadow
+    protected int imageWidth;
+
+    @Shadow
+    protected abstract <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget);
+
+    @Inject(method = "init", at = @At("TAIL"))
+    private void permaworld$sort$addButtons(CallbackInfo ci) {
+        if (!ConfigManager.get().config().sort.enabled) {
+            return;
+        }
+
+        int buttonSize = 16;
+        int gap = 2;
+        int totalWidth = buttonSize * 3 + gap * 2;
+        int x = this.leftPos + this.imageWidth - totalWidth;
+        int y = Math.max(4, this.topPos - buttonSize - 2);
+
+        addSortButton(x, y, buttonSize, "A", SortMode.NAME);
+        addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
+        addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
+    }
+
+    private void addSortButton(int x, int y, int size, String label, SortMode mode) {
+        String key = SortFeedback.key(mode);
+        Button button = Button.builder(Component.literal(label), ignored -> InventorySorter.sort(mode))
+                .bounds(x, y, size, size)
+                .tooltip(Tooltip.create(Component.translatable("permaworld.sort.tooltip." + key)))
+                .build();
+        this.addRenderableWidget(button);
+    }
 
     @Inject(
             method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V",
@@ -71,8 +119,13 @@ public abstract class AbstractContainerScreenMixin {
             at = @At("TAIL")
     )
     private void permaworld$slotLock$onExtractSlot(GuiGraphicsExtractor extractor, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
-        if (!ConfigManager.get().config().slotLock.enabled) return;
         if (slot == null) return;
+
+        if (ConfigManager.get().config().sort.enabled && SortFeedback.shouldHighlight(slot)) {
+            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x55A5D6FF);
+        }
+
+        if (!ConfigManager.get().config().slotLock.enabled) return;
 
         boolean modifier = SlotLockManager.modifierDown();
         boolean locked = SlotLockManager.isSlotLocked(slot);

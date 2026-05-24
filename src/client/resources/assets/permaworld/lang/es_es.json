@@ -6,6 +6,12 @@
   "permaworld.feedback.no_chest_nearby": "No hay cofre compatible cerca",
   "permaworld.feedback.items_moved": "Movidos %s items",
   "permaworld.feedback.trade_disabled": "Trato no disponible",
+  "permaworld.sort.tooltip.name": "Ordenar por nombre",
+  "permaworld.sort.tooltip.count": "Ordenar por cantidad",
+  "permaworld.sort.tooltip.category": "Ordenar por categoría",
+  "permaworld.sort.feedback.name": "Ordenado por nombre",
+  "permaworld.sort.feedback.count": "Ordenado por cantidad",
+  "permaworld.sort.feedback.category": "Ordenado por categoría",
   "permaworld.trader.quick_buy": "Compra rápida",
   "permaworld.trader.favorite": "Favorito"
 }

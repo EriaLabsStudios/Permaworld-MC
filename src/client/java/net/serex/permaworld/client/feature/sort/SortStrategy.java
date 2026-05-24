@@ -12,7 +12,7 @@ import java.util.Set;
  * lista del mismo tamaño con los slots reordenados:
  * <ul>
  *   <li>Los slots cuyo índice esté en {@code lockedSlots} se mantienen tal cual.</li>
- *   <li>El resto se ordena por {@code itemId} (alfabético) sin fusionar stacks.</li>
+ *   <li>El resto se ordena según el modo elegido sin fusionar stacks.</li>
  *   <li>Los huecos vacíos quedan al final.</li>
  * </ul>
  * No emite paquetes: solo decide el estado objetivo. {@code InventorySorter} se encarga
@@ -31,6 +31,10 @@ public final class SortStrategy {
      * @return nueva lista del mismo tamaño con el orden propuesto
      */
     public static List<SortableSlot> sort(List<SortableSlot> current, Set<Integer> lockedSlots) {
+        return sort(current, lockedSlots, SortMode.NAME);
+    }
+
+    public static List<SortableSlot> sort(List<SortableSlot> current, Set<Integer> lockedSlots, SortMode mode) {
         int size = current.size();
         SortableSlot[] result = new SortableSlot[size];
 
@@ -49,11 +53,8 @@ public final class SortStrategy {
             }
         }
 
-        // 2. Ordena por itemId DESCENDENTE (a petición del usuario: el orden
-        //    ascendente sentía "al revés"). A igualdad de id, stacks más llenos primero.
-        movable.sort(Comparator
-                .comparing((SortableSlot s) -> s.itemId()).reversed()
-                .thenComparing(Comparator.comparingInt(SortableSlot::count).reversed()));
+        // 2. Ordena sin fusionar stacks; el modo por nombre conserva el comportamiento actual.
+        movable.sort(comparator(mode));
 
         // 3. Coloca el resultado en los huecos libres; el resto quedan vacíos.
         for (int i = 0; i < freeIndices.size(); i++) {
@@ -62,5 +63,20 @@ public final class SortStrategy {
         }
 
         return List.of(result);
+    }
+
+    private static Comparator<SortableSlot> comparator(SortMode mode) {
+        return switch (mode) {
+            case COUNT -> Comparator
+                    .comparingInt(SortableSlot::count).reversed()
+                    .thenComparing(Comparator.comparing((SortableSlot s) -> s.itemId()).reversed());
+            case CATEGORY -> Comparator
+                    .comparingInt((SortableSlot s) -> s.category().order())
+                    .thenComparing(Comparator.comparing((SortableSlot s) -> s.itemId()).reversed())
+                    .thenComparing(Comparator.comparingInt(SortableSlot::count).reversed());
+            case NAME -> Comparator
+                    .comparing((SortableSlot s) -> s.itemId()).reversed()
+                    .thenComparing(Comparator.comparingInt(SortableSlot::count).reversed());
+        };
     }
 }

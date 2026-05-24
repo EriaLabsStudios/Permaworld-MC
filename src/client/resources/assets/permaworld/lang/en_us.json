@@ -6,6 +6,12 @@
   "permaworld.feedback.no_chest_nearby": "No matching chest nearby",
   "permaworld.feedback.items_moved": "Moved %s items",
   "permaworld.feedback.trade_disabled": "Trade unavailable",
+  "permaworld.sort.tooltip.name": "Sort by name",
+  "permaworld.sort.tooltip.count": "Sort by count",
+  "permaworld.sort.tooltip.category": "Sort by category",
+  "permaworld.sort.feedback.name": "Sorted by name",
+  "permaworld.sort.feedback.count": "Sorted by count",
+  "permaworld.sort.feedback.category": "Sorted by category",
   "permaworld.trader.quick_buy": "Quick Buy",
   "permaworld.trader.favorite": "Favorite"
 }

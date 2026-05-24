@@ -45,6 +45,10 @@ public final class InventorySorter {
      * Entry point del feature: decide el contexto según el hover y ordena.
      */
     public static void sort() {
+        sort(SortMode.NAME);
+    }
+
+    public static void sort(SortMode mode) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         MultiPlayerGameMode gameMode = mc.gameMode;
@@ -62,10 +66,10 @@ public final class InventorySorter {
 
         if (sortPlayerStorage) {
             DebugLog.log("sort", "Contexto: storage del jugador (9-35).");
-            sortContainer(gameMode, menu, playerInv, /*onlyStorage=*/ true);
+            sortContainer(gameMode, menu, playerInv, /*onlyStorage=*/ true, mode);
         } else {
             DebugLog.log("sort", "Contexto: contenedor externo {}.", hovered.getClass().getSimpleName());
-            sortContainer(gameMode, menu, hovered, /*onlyStorage=*/ false);
+            sortContainer(gameMode, menu, hovered, /*onlyStorage=*/ false, mode);
         }
     }
 
@@ -92,7 +96,8 @@ public final class InventorySorter {
     private static void sortContainer(MultiPlayerGameMode gameMode,
                                       AbstractContainerMenu menu,
                                       Container targetContainer,
-                                      boolean onlyStorage) {
+                                      boolean onlyStorage,
+                                      SortMode mode) {
         List<Integer> menuSlotIds = new ArrayList<>();
         List<SortableSlot> snapshot = new ArrayList<>();
         Set<Integer> lockedSnapshotIdx = new HashSet<>();
@@ -127,7 +132,7 @@ public final class InventorySorter {
         DebugLog.log("sort", "Detectados {} slots ({} con item favorito y por tanto bloqueados).",
                 snapshot.size(), lockedSnapshotIdx.size());
 
-        List<SortableSlot> target = SortStrategy.sort(snapshot, lockedSnapshotIdx);
+        List<SortableSlot> target = SortStrategy.sort(snapshot, lockedSnapshotIdx, mode);
         Set<Integer> lockedMenuSlots = lockedSnapshotIdx; // alias para legibilidad
         List<Integer> playerSlotIds = menuSlotIds;        // alias para reutilizar el bloque inferior
 
@@ -137,6 +142,7 @@ public final class InventorySorter {
         // en el client thread (25ms x 3 pickups por swap), lo que congelaba el cliente
         // entero. Ahora se emiten todos los pickups seguidos en el mismo tick.
         List<SortableSlot> current = new ArrayList<>(snapshot);
+        Set<Integer> touchedMenuSlots = SortFeedback.newTouchedSet();
         int clicks = 0;
 
         for (int i = 0; i < current.size(); i++) {
@@ -152,6 +158,8 @@ public final class InventorySorter {
                 continue;
             }
             swap(gameMode, menu.containerId, playerSlotIds.get(i), playerSlotIds.get(j));
+            touchedMenuSlots.add(playerSlotIds.get(i));
+            touchedMenuSlots.add(playerSlotIds.get(j));
             // Refleja el swap en la copia lógica.
             SortableSlot tmp = current.get(i);
             current.set(i, current.get(j));
@@ -162,6 +170,7 @@ public final class InventorySorter {
 
         Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks);
         DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (sin delay).", clicks);
+        SortFeedback.show(mode, menu.containerId, SortFeedback.touchedOrFallback(touchedMenuSlots, menuSlotIds));
     }
 
     private static int findSource(List<SortableSlot> current, SortableSlot want, int from, Set<Integer> locked) {

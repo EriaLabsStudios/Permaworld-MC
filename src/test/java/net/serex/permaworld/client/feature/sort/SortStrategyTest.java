@@ -85,6 +85,45 @@ class SortStrategyTest {
     }
 
     @Test
+    void ordenaPorCantidadManteniendoNombreComoDesempate() {
+        List<SortableSlot> input = inv(
+                apple(5),
+                stick(64),
+                pickaxe(),
+                apple(32)
+        );
+
+        List<SortableSlot> result = SortStrategy.sort(input, Set.of(), SortMode.COUNT);
+
+        assertEquals("minecraft:stick", result.get(0).itemId());
+        assertEquals(64, result.get(0).count());
+        assertEquals("minecraft:apple", result.get(1).itemId());
+        assertEquals(32, result.get(1).count());
+        assertEquals("minecraft:apple", result.get(2).itemId());
+        assertEquals(5, result.get(2).count());
+        assertEquals("minecraft:iron_pickaxe", result.get(3).itemId());
+    }
+
+    @Test
+    void ordenaPorCategoriasLegiblesAntesDeNombre() {
+        List<SortableSlot> input = inv(
+                new SortableSlot("minecraft:oak_planks", 16, 64),
+                apple(4),
+                pickaxe(),
+                new SortableSlot("minecraft:diamond_sword", 1, 1),
+                new SortableSlot("minecraft:redstone", 20, 64)
+        );
+
+        List<SortableSlot> result = SortStrategy.sort(input, Set.of(), SortMode.CATEGORY);
+
+        assertEquals("minecraft:iron_pickaxe", result.get(0).itemId());
+        assertEquals("minecraft:diamond_sword", result.get(1).itemId());
+        assertEquals("minecraft:apple", result.get(2).itemId());
+        assertEquals("minecraft:redstone", result.get(3).itemId());
+        assertEquals("minecraft:oak_planks", result.get(4).itemId());
+    }
+
+    @Test
     void inventarioVacioDevuelveTodoVacio() {
         List<SortableSlot> input = inv(SortableSlot.empty(), SortableSlot.empty());
 
