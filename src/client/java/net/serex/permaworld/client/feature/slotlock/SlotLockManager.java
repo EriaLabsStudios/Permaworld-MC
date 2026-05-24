@@ -3,6 +3,7 @@ package net.serex.permaworld.client.feature.slotlock;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
@@ -102,6 +103,11 @@ public final class SlotLockManager {
 
     public static boolean isMarked(Slot slot) {
         return markForSlot(slot) != null;
+    }
+
+    public static boolean isInventorySlotLocked(int inventorySlot) {
+        SlotMark mark = markForInventorySlot(inventorySlot);
+        return mark != null && mark.mode() == SlotMarkMode.LOCK;
     }
 
     public static SlotMark markForSlot(Slot slot) {
@@ -221,6 +227,16 @@ public final class SlotLockManager {
             mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHEST_LOCKED, 0.75F));
         } else {
             mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.45F));
+        }
+    }
+
+    public static void warnBlockedItem() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui != null) {
+            mc.gui.setOverlayMessage(Component.translatable("permaworld.slotmark.blocked"), false);
+        }
+        if (mc.getSoundManager() != null) {
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHEST_LOCKED, 0.65F));
         }
     }
 

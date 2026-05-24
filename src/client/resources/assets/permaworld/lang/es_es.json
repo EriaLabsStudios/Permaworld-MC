@@ -14,6 +14,7 @@
   "permaworld.sort.feedback.category": "Ordenado por categoría",
   "permaworld.slotmark.tooltip.favorite": "Marcar slot como favorito",
   "permaworld.slotmark.tooltip.lock": "Bloquear slot",
+  "permaworld.slotmark.blocked": "Este objeto esta bloqueado",
   "permaworld.config.title": "Eria Permaworld",
   "permaworld.config.sort.enabled": "Ordenar inventario: %s",
   "permaworld.config.sort.button_size": "Tamaño botones: %s px",
