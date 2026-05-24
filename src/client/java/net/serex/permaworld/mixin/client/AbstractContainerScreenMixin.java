@@ -53,6 +53,9 @@ public abstract class AbstractContainerScreenMixin {
         if (!ConfigManager.get().config().sort.enabled) {
             return;
         }
+        if (isCreativeInventoryScreen()) {
+            return;
+        }
 
         PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
         int buttonSize = Math.max(8, sort.buttonSize);
@@ -70,13 +73,16 @@ public abstract class AbstractContainerScreenMixin {
         String screenName = ((Object) this).getClass().getSimpleName();
         int y;
         if (screenName.contains("InventoryScreen")
-                || screenName.contains("CreativeModeInventoryScreen")
                 || screenName.contains("CraftingScreen")) {
             y = this.topPos + sort.inventoryButtonOffsetY;
         } else {
             y = this.topPos + sort.containerButtonOffsetY;
         }
         return Math.min(y, this.topPos + this.imageHeight - buttonSize - 6);
+    }
+
+    private boolean isCreativeInventoryScreen() {
+        return ((Object) this).getClass().getSimpleName().contains("CreativeModeInventoryScreen");
     }
 
     private void addSortButton(int x, int y, int size, String label, SortMode mode) {
