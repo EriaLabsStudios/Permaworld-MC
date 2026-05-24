@@ -176,9 +176,6 @@ public final class SlotLockManager {
         if (mark == null || mark.mode() != SlotMarkMode.FAVORITE) {
             return true;
         }
-        if (!slot.getItem().isEmpty()) {
-            return true;
-        }
         String reserved = mark.itemId();
         String carriedId = itemIdOf(carried);
         return reserved == null || carriedId == null || reserved.equals(carriedId);
@@ -237,6 +234,16 @@ public final class SlotLockManager {
         }
         if (mc.getSoundManager() != null) {
             mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHEST_LOCKED, 0.65F));
+        }
+    }
+
+    public static void warnReservedSlot() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui != null) {
+            mc.gui.setOverlayMessage(Component.translatable("permaworld.slotmark.reserved"), false);
+        }
+        if (mc.getSoundManager() != null) {
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.CHEST_LOCKED, 0.85F));
         }
     }
 

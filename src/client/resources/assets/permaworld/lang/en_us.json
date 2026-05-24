@@ -15,6 +15,7 @@
   "permaworld.slotmark.tooltip.favorite": "Mark slot as favorite",
   "permaworld.slotmark.tooltip.lock": "Lock slot",
   "permaworld.slotmark.blocked": "This item is blocked",
+  "permaworld.slotmark.reserved": "This slot is reserved",
   "permaworld.config.title": "Eria Permaworld",
   "permaworld.config.sort.enabled": "Inventory sort: %s",
   "permaworld.config.sort.button_size": "Button size: %s px",

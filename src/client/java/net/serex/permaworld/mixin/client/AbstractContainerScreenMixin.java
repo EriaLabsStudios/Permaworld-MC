@@ -204,6 +204,7 @@ public abstract class AbstractContainerScreenMixin {
                 : ItemStack.EMPTY;
         if (!SlotLockManager.canPlaceInReservedSlot(slot, carried)) {
             DebugLog.log("slotlock", "Click cancelado: slot favorito reservado para otro item.");
+            SlotLockManager.warnReservedSlot();
             ci.cancel();
         }
     }
