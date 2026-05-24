@@ -53,7 +53,7 @@ public abstract class AbstractContainerScreenMixin {
             return;
         }
 
-        int buttonSize = 16;
+        int buttonSize = 14;
         int gap = 2;
         int totalWidth = buttonSize * 3 + gap * 2;
         int x = this.leftPos + this.imageWidth - totalWidth - 8;
@@ -70,9 +70,9 @@ public abstract class AbstractContainerScreenMixin {
         if (screenName.contains("InventoryScreen")
                 || screenName.contains("CreativeModeInventoryScreen")
                 || screenName.contains("CraftingScreen")) {
-            y = this.topPos + 70;
+            y = this.topPos + 64;
         } else {
-            y = this.topPos + 8;
+            y = this.topPos + 4;
         }
         return Math.min(y, this.topPos + this.imageHeight - buttonSize - 6);
     }
