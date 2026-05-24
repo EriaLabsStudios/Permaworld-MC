@@ -18,6 +18,8 @@
   "permaworld.slotmark.reserved": "This slot is reserved",
   "permaworld.config.title": "Eria Permaworld",
   "permaworld.config.sort.enabled": "Inventory sort: %s",
+  "permaworld.config.slot_lock.protect_pickup": "Auto-reject wrong pickups: %s",
+  "permaworld.config.slot_lock.drag_brush": "Drag to mark slots: %s",
   "permaworld.config.sort.button_size": "Button size: %s px",
   "permaworld.config.sort.button_offset_x": "Button X offset: %s",
   "permaworld.config.sort.inventory_offset_y": "Inventory/crafting Y offset: %s",

@@ -7,6 +7,7 @@
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenAccessor",
     "GuiMixin",
+    "InventoryMixin",
     "LocalPlayerMixin",
     "ScreenAccessor"
   ],

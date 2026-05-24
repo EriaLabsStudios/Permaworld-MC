@@ -24,6 +24,16 @@ public final class PermaworldConfigScreen extends Screen {
                 value -> ConfigManager.get().config().sort.enabled = value);
         row += 24;
 
+        addControl(x, row, "permaworld.config.slot_lock.protect_pickup",
+                () -> ConfigManager.get().config().slotLock.protectPickup,
+                value -> ConfigManager.get().config().slotLock.protectPickup = value);
+        row += 24;
+
+        addControl(x, row, "permaworld.config.slot_lock.drag_brush",
+                () -> ConfigManager.get().config().slotLock.dragBrush,
+                value -> ConfigManager.get().config().slotLock.dragBrush = value);
+        row += 24;
+
         addNumberControl(x, row, "permaworld.config.sort.button_size",
                 () -> ConfigManager.get().config().sort.buttonSize,
                 value -> ConfigManager.get().config().sort.buttonSize = clamp(value, 8, 24),

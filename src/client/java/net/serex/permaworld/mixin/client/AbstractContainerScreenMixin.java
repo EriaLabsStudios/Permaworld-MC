@@ -4,7 +4,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -19,11 +21,16 @@ import net.serex.permaworld.client.feature.sort.InventorySorter;
 import net.serex.permaworld.client.feature.sort.SortFeedback;
 import net.serex.permaworld.client.feature.sort.SortMode;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Mixin que añade las marcas de slot a cualquier pantalla con contenedor:
@@ -42,6 +49,19 @@ public abstract class AbstractContainerScreenMixin {
 
     @Unique
     private Button permaworld$lockMarkButton;
+
+    @Unique
+    private final Set<Integer> permaworld$dragProcessedSlots = new HashSet<>();
+
+    @Unique
+    private SlotMarkMode permaworld$dragMode;
+
+    @Unique
+    private boolean permaworld$dragShouldMark;
+
+    @Shadow
+    @Final
+    protected AbstractContainerMenu menu;
 
     @Shadow
     protected int leftPos;
@@ -170,11 +190,28 @@ public abstract class AbstractContainerScreenMixin {
         }
         if (slot == null) return;
 
+        if (input == ContainerInput.QUICK_MOVE
+                && ConfigManager.get().config().slotLock.protectPickup
+                && permaworld$quickMoveHasNoSafeTarget(slot)) {
+            DebugLog.log("slotlock", "Shift-click cancelado: no hay destino valido para {}.",
+                    SlotLockManager.itemIdOf(slot.getItem()));
+            SlotLockManager.warnReservedSlot();
+            ci.cancel();
+            return;
+        }
+
         SlotMarkMode activeMode = SlotLockManager.activeMode();
         if (activeMode != null) {
-            boolean toggled = SlotLockManager.toggleSlotMark(slot, activeMode);
-            DebugLog.log("slotlock", "Modo {} sobre slot {} (toggled={}).",
-                    activeMode, slot.getContainerSlot(), toggled);
+            if (button != 0 && button != 1) {
+                ci.cancel();
+                return;
+            }
+
+            boolean shouldMark = button == 0;
+            permaworld$beginDragBrush(activeMode, shouldMark);
+            boolean changed = permaworld$applyDragBrush(slot);
+            DebugLog.log("slotlock", "Modo {} sobre slot {} (mark={} changed={}).",
+                    activeMode, slot.getContainerSlot(), shouldMark, changed);
             ci.cancel();
             return;
         }
@@ -207,6 +244,148 @@ public abstract class AbstractContainerScreenMixin {
             SlotLockManager.warnReservedSlot();
             ci.cancel();
         }
+    }
+
+    @Unique
+    private boolean permaworld$quickMoveHasNoSafeTarget(Slot source) {
+        if (!SlotLockManager.isPlayerInventorySlot(source)) {
+            return false;
+        }
+
+        ItemStack stack = source.getItem();
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        if (permaworld$hasSafeExternalTarget(source, stack)) {
+            return false;
+        }
+
+        int sourceInventorySlot = source.getContainerSlot();
+        int start = sourceInventorySlot < 9 ? 9 : 0;
+        int end = sourceInventorySlot < 9 ? 36 : 9;
+        return !permaworld$hasSafePlayerInventoryTarget(source, stack, start, end);
+    }
+
+    @Unique
+    private boolean permaworld$hasSafeExternalTarget(Slot source, ItemStack stack) {
+        for (Slot target : this.menu.slots) {
+            if (target == source || target.container == source.container || !target.isActive()) {
+                continue;
+            }
+            if (permaworld$canSlotAccept(target, stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private boolean permaworld$hasSafePlayerInventoryTarget(Slot source, ItemStack stack, int start, int end) {
+        for (Slot target : this.menu.slots) {
+            if (target == source || target.container != source.container || !target.isActive()) {
+                continue;
+            }
+            int inventorySlot = target.getContainerSlot();
+            if (inventorySlot < start || inventorySlot >= end) {
+                continue;
+            }
+            if (permaworld$canSlotAccept(target, stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private boolean permaworld$canSlotAccept(Slot target, ItemStack stack) {
+        if (!target.mayPlace(stack)) {
+            return false;
+        }
+
+        if (SlotLockManager.isPlayerInventorySlot(target)
+                && !SlotLockManager.canPickupUseInventorySlot(target.getContainerSlot(), stack)) {
+            return false;
+        }
+
+        ItemStack current = target.getItem();
+        if (current.isEmpty()) {
+            return true;
+        }
+        return ItemStack.isSameItemSameComponents(current, stack)
+                && current.getCount() < Math.min(current.getMaxStackSize(), target.getMaxStackSize(current));
+    }
+
+    @Inject(method = "mouseDragged(Lnet/minecraft/client/input/MouseButtonEvent;DD)Z", at = @At("HEAD"), cancellable = true)
+    private void permaworld$slotLock$dragSlotMarks(MouseButtonEvent event, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
+        if (!ConfigManager.get().config().slotLock.enabled || isCreativeInventoryScreen()) {
+            permaworld$endDragBrush();
+            return;
+        }
+        SlotMarkMode activeMode = SlotLockManager.activeMode();
+        if (activeMode == null || (event.button() != 0 && event.button() != 1)) {
+            permaworld$endDragBrush();
+            return;
+        }
+        if (!ConfigManager.get().config().slotLock.dragBrush) {
+            cir.setReturnValue(true);
+            return;
+        }
+
+        Slot hovered = permaworld$slotAt(event.x(), event.y());
+        if (hovered != null && SlotLockManager.isPlayerInventorySlot(hovered)) {
+            if (permaworld$dragMode == null) {
+                permaworld$beginDragBrush(activeMode, event.button() == 0);
+            }
+            permaworld$applyDragBrush(hovered);
+        }
+        cir.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseReleased(Lnet/minecraft/client/input/MouseButtonEvent;)Z", at = @At("HEAD"))
+    private void permaworld$slotLock$releaseSlotMarkDrag(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        permaworld$endDragBrush();
+    }
+
+    @Unique
+    private void permaworld$beginDragBrush(SlotMarkMode mode, boolean shouldMark) {
+        if (permaworld$dragMode == mode && permaworld$dragShouldMark == shouldMark) {
+            return;
+        }
+        permaworld$dragMode = mode;
+        permaworld$dragShouldMark = shouldMark;
+        permaworld$dragProcessedSlots.clear();
+    }
+
+    @Unique
+    private boolean permaworld$applyDragBrush(Slot slot) {
+        if (permaworld$dragMode == null || !SlotLockManager.isPlayerInventorySlot(slot)) {
+            return false;
+        }
+        int inventorySlot = slot.getContainerSlot();
+        if (!permaworld$dragProcessedSlots.add(inventorySlot)) {
+            return false;
+        }
+        return SlotLockManager.applySlotMark(slot, permaworld$dragMode, permaworld$dragShouldMark);
+    }
+
+    @Unique
+    private void permaworld$endDragBrush() {
+        permaworld$dragMode = null;
+        permaworld$dragShouldMark = false;
+        permaworld$dragProcessedSlots.clear();
+    }
+
+    @Unique
+    private Slot permaworld$slotAt(double mouseX, double mouseY) {
+        for (Slot slot : this.menu.slots) {
+            int x = this.leftPos + slot.x;
+            int y = this.topPos + slot.y;
+            if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+                return slot;
+            }
+        }
+        return null;
     }
 
     @Inject(

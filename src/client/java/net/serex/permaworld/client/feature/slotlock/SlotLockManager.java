@@ -146,18 +146,23 @@ public final class SlotLockManager {
 
         int inventorySlot = slot.getContainerSlot();
         SlotMark previous = markForInventorySlot(inventorySlot);
+        if (previous != null && previous.mode() == mode) {
+            return clearSlotMark(slot, mode);
+        }
+
+        return setSlotMark(slot, mode);
+    }
+
+    public static boolean setSlotMark(Slot slot, SlotMarkMode mode) {
+        if (!isPlayerInventorySlot(slot)) {
+            return false;
+        }
+
+        SlotMark previous = markForSlot(slot);
         String itemId = itemIdOf(slot.getItem());
         if (itemId == null && previous != null) {
             itemId = previous.itemId();
         }
-
-        if (previous != null && previous.mode() == mode) {
-            slotMarks().remove(inventorySlot);
-            ConfigManager.get().save();
-            play(mode);
-            return true;
-        }
-
         if (mode == SlotMarkMode.FAVORITE && itemId == null) {
             return false;
         }
@@ -165,10 +170,35 @@ public final class SlotLockManager {
         PermaworldConfig.SlotLockConfig.SlotMarkConfig raw = new PermaworldConfig.SlotLockConfig.SlotMarkConfig();
         raw.mode = mode.configName();
         raw.itemId = itemId;
-        slotMarks().put(inventorySlot, raw);
+        slotMarks().put(slot.getContainerSlot(), raw);
         ConfigManager.get().save();
         play(mode);
         return true;
+    }
+
+    public static boolean clearSlotMark(Slot slot, SlotMarkMode mode) {
+        if (!isPlayerInventorySlot(slot)) {
+            return false;
+        }
+
+        SlotMark previous = markForSlot(slot);
+        if (previous == null || previous.mode() != mode) {
+            return false;
+        }
+
+        slotMarks().remove(slot.getContainerSlot());
+        ConfigManager.get().save();
+        play(mode);
+        return true;
+    }
+
+    public static boolean hasSlotMarkMode(Slot slot, SlotMarkMode mode) {
+        SlotMark mark = markForSlot(slot);
+        return mark != null && mark.mode() == mode;
+    }
+
+    public static boolean applySlotMark(Slot slot, SlotMarkMode mode, boolean mark) {
+        return mark ? setSlotMark(slot, mode) : clearSlotMark(slot, mode);
     }
 
     public static boolean canPlaceInReservedSlot(Slot slot, ItemStack carried) {
@@ -179,6 +209,17 @@ public final class SlotLockManager {
         String reserved = mark.itemId();
         String carriedId = itemIdOf(carried);
         return reserved == null || carriedId == null || reserved.equals(carriedId);
+    }
+
+    public static boolean canPickupUseInventorySlot(int inventorySlot, ItemStack stack) {
+        SlotMark mark = markForInventorySlot(inventorySlot);
+        if (mark == null) {
+            return true;
+        }
+
+        String reserved = mark.itemId();
+        String pickedUpId = itemIdOf(stack);
+        return reserved != null && reserved.equals(pickedUpId);
     }
 
     public static ItemStack ghostStack(Slot slot) {

@@ -57,6 +57,8 @@ public class PermaworldConfig {
 
     public static class SlotLockConfig {
         public boolean enabled = true;
+        public boolean protectPickup = true;
+        public boolean dragBrush = true;
         public Map<Integer, SlotMarkConfig> playerSlots = new HashMap<>();
 
         public static class SlotMarkConfig {
