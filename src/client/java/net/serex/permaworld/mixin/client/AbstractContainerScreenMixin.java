@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.config.PermaworldConfig;
 import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
 import net.serex.permaworld.client.feature.sort.InventorySorter;
@@ -53,26 +54,27 @@ public abstract class AbstractContainerScreenMixin {
             return;
         }
 
-        int buttonSize = 14;
-        int gap = 2;
+        PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+        int buttonSize = Math.max(8, sort.buttonSize);
+        int gap = Math.max(0, sort.buttonGap);
         int totalWidth = buttonSize * 3 + gap * 2;
-        int x = this.leftPos + this.imageWidth - totalWidth - 8;
-        int y = sortButtonY(buttonSize);
+        int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
+        int y = sortButtonY(buttonSize, sort);
 
         addSortButton(x, y, buttonSize, "A", SortMode.NAME);
         addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
         addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
     }
 
-    private int sortButtonY(int buttonSize) {
+    private int sortButtonY(int buttonSize, PermaworldConfig.SortConfig sort) {
         String screenName = ((Object) this).getClass().getSimpleName();
         int y;
         if (screenName.contains("InventoryScreen")
                 || screenName.contains("CreativeModeInventoryScreen")
                 || screenName.contains("CraftingScreen")) {
-            y = this.topPos + 64;
+            y = this.topPos + sort.inventoryButtonOffsetY;
         } else {
-            y = this.topPos + 4;
+            y = this.topPos + sort.containerButtonOffsetY;
         }
         return Math.min(y, this.topPos + this.imageHeight - buttonSize - 6);
     }

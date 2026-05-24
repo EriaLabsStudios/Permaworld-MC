@@ -16,6 +16,9 @@
     "client": [
       "net.serex.permaworld.client.PermaworldClient"
     ],
+    "modmenu": [
+      "net.serex.permaworld.client.config.PermaworldModMenuApi"
+    ],
     "main": [
       "net.serex.permaworld.Permaworld"
     ]

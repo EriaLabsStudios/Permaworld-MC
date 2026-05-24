@@ -26,7 +26,26 @@ public class PermaworldConfig {
     public boolean debug = false;
 
     public static class SortConfig {
+        public static final int DEFAULT_BUTTON_SIZE = 10;
+        public static final int DEFAULT_BUTTON_GAP = 2;
+        public static final int DEFAULT_BUTTON_OFFSET_X = -8;
+        public static final int DEFAULT_INVENTORY_BUTTON_OFFSET_Y = 64;
+        public static final int DEFAULT_CONTAINER_BUTTON_OFFSET_Y = 4;
+
         public boolean enabled = true;
+        public int buttonSize = DEFAULT_BUTTON_SIZE;
+        public int buttonGap = DEFAULT_BUTTON_GAP;
+        public int buttonOffsetX = DEFAULT_BUTTON_OFFSET_X;
+        public int inventoryButtonOffsetY = DEFAULT_INVENTORY_BUTTON_OFFSET_Y;
+        public int containerButtonOffsetY = DEFAULT_CONTAINER_BUTTON_OFFSET_Y;
+
+        public void resetButtonLayout() {
+            buttonSize = DEFAULT_BUTTON_SIZE;
+            buttonGap = DEFAULT_BUTTON_GAP;
+            buttonOffsetX = DEFAULT_BUTTON_OFFSET_X;
+            inventoryButtonOffsetY = DEFAULT_INVENTORY_BUTTON_OFFSET_Y;
+            containerButtonOffsetY = DEFAULT_CONTAINER_BUTTON_OFFSET_Y;
+        }
     }
 
     public static class QuickDropConfig {

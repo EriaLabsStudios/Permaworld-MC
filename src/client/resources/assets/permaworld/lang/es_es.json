@@ -12,6 +12,13 @@
   "permaworld.sort.feedback.name": "Ordenado por nombre",
   "permaworld.sort.feedback.count": "Ordenado por cantidad",
   "permaworld.sort.feedback.category": "Ordenado por categoría",
+  "permaworld.config.title": "Eria Permaworld",
+  "permaworld.config.sort.enabled": "Ordenar inventario: %s",
+  "permaworld.config.sort.button_size": "Tamaño botones: %s px",
+  "permaworld.config.sort.button_offset_x": "Offset botones X: %s",
+  "permaworld.config.sort.inventory_offset_y": "Offset Y inventario/crafting: %s",
+  "permaworld.config.sort.container_offset_y": "Offset Y cofres/contenedores: %s",
+  "permaworld.config.reset_layout": "Reset layout",
   "permaworld.trader.quick_buy": "Compra rápida",
   "permaworld.trader.favorite": "Favorito"
 }
