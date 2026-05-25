@@ -16,7 +16,7 @@ public final class PermaworldConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int row = this.height / 2 - 92;
+        int row = this.height / 2 - 140;
         int x = this.width / 2 - 120;
 
         addControl(x, row, "permaworld.config.sort.enabled",
@@ -32,6 +32,11 @@ public final class PermaworldConfigScreen extends Screen {
         addControl(x, row, "permaworld.config.slot_lock.drag_brush",
                 () -> ConfigManager.get().config().slotLock.dragBrush,
                 value -> ConfigManager.get().config().slotLock.dragBrush = value);
+        row += 24;
+
+        addControl(x, row, "permaworld.config.harvest.enabled",
+                () -> ConfigManager.get().config().harvest.enabled,
+                value -> ConfigManager.get().config().harvest.enabled = value);
         row += 24;
 
         addNumberControl(x, row, "permaworld.config.sort.button_size",
@@ -55,6 +60,30 @@ public final class PermaworldConfigScreen extends Screen {
         addNumberControl(x, row, "permaworld.config.sort.container_offset_y",
                 () -> ConfigManager.get().config().sort.containerButtonOffsetY,
                 value -> ConfigManager.get().config().sort.containerButtonOffsetY = clamp(value, 0, 80),
+                1);
+        row += 24;
+
+        addNumberControl(x, row, "permaworld.config.harvest.stone_area",
+                () -> ConfigManager.get().config().harvest.stoneHoeArea,
+                value -> ConfigManager.get().config().harvest.stoneHoeArea = clamp(value, 1, 8),
+                1);
+        row += 24;
+
+        addNumberControl(x, row, "permaworld.config.harvest.iron_area",
+                () -> ConfigManager.get().config().harvest.ironHoeArea,
+                value -> ConfigManager.get().config().harvest.ironHoeArea = clamp(value, 1, 8),
+                1);
+        row += 24;
+
+        addNumberControl(x, row, "permaworld.config.harvest.diamond_area",
+                () -> ConfigManager.get().config().harvest.diamondHoeArea,
+                value -> ConfigManager.get().config().harvest.diamondHoeArea = clamp(value, 1, 8),
+                1);
+        row += 24;
+
+        addNumberControl(x, row, "permaworld.config.harvest.netherite_area",
+                () -> ConfigManager.get().config().harvest.netheriteHoeArea,
+                value -> ConfigManager.get().config().harvest.netheriteHoeArea = clamp(value, 1, 8),
                 1);
         row += 32;
 
