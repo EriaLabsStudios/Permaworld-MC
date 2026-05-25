@@ -8,5 +8,6 @@ Eria Permaworld es un mod vanilla plus para hacer la supervivencia mas comoda si
 - Botones pequeños dentro de la interfaz para ordenar por nombre, cantidad o categoria.
 - Slots favoritos y bloqueados para reservar huecos importantes, proteger objetos y marcar varios slots arrastrando.
 - Cosechar y replantar cultivos maduros con clic derecho.
+- Gestor de resource packs para archivar packs, borrarlos y guardar perfiles.
 - Configuracion desde Mod Menu para ajustar las opciones principales.
 - Feedback visual y sonoro en acciones como ordenar.

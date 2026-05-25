@@ -9,6 +9,7 @@
     "GuiMixin",
     "InventoryMixin",
     "LocalPlayerMixin",
+    "PackSelectionScreenMixin",
     "ScreenAccessor"
   ],
   "injectors": {
