@@ -151,6 +151,7 @@ public final class InventorySorter {
         List<Integer> menuSlotIds = new ArrayList<>();
         List<SortableSlot> snapshot = new ArrayList<>();
         Set<Integer> markedSnapshotIdx = new HashSet<>();
+        Set<Integer> immovableSnapshotIdx = new HashSet<>();
         Map<Integer, SlotMark> marksBySnapshotIdx = new HashMap<>();
 
         for (int i = 0; i < menu.slots.size(); i++) {
@@ -175,6 +176,9 @@ public final class InventorySorter {
                 int snapshotIdx = snapshot.size() - 1;
                 markedSnapshotIdx.add(snapshotIdx);
                 marksBySnapshotIdx.put(snapshotIdx, mark);
+                if (mark.mode() == SlotLockManager.SlotMarkMode.LOCK) {
+                    immovableSnapshotIdx.add(snapshotIdx);
+                }
             }
         }
 
@@ -198,11 +202,14 @@ public final class InventorySorter {
         int clicks = 0;
 
         for (int i = 0; i < current.size(); i++) {
+            if (immovableSnapshotIdx.contains(i)) {
+                continue;
+            }
             if (equalSlots(current.get(i), target.get(i))) {
                 continue;
             }
             // Busca en j > i un slot que coincida con target[i] (y que no esté bloqueado).
-            int j = findSource(current, target.get(i), i + 1, Set.of());
+            int j = findSource(current, target.get(i), i + 1, markedSnapshotIdx);
             if (j < 0) {
                 continue;
             }
@@ -228,16 +235,32 @@ public final class InventorySorter {
         int size = current.size();
         SortableSlot[] target = new SortableSlot[size];
         Set<Integer> used = new HashSet<>();
+        Set<Integer> markedIndices = marksBySnapshotIdx.keySet();
 
         for (Map.Entry<Integer, SlotMark> entry : marksBySnapshotIdx.entrySet()) {
             int targetIdx = entry.getKey();
-            String reservedItemId = entry.getValue().itemId();
+            SlotMark mark = entry.getValue();
+            SortableSlot currentSlot = current.get(targetIdx);
+
+            if (mark.mode() == SlotLockManager.SlotMarkMode.LOCK) {
+                target[targetIdx] = currentSlot;
+                used.add(targetIdx);
+                continue;
+            }
+
+            String reservedItemId = mark.itemId();
             if (reservedItemId == null) {
                 target[targetIdx] = SortableSlot.empty();
                 continue;
             }
 
-            int sourceIdx = findFirstUnusedItem(current, reservedItemId, used);
+            if (!currentSlot.isEmpty() && currentSlot.itemId().equals(reservedItemId)) {
+                target[targetIdx] = currentSlot;
+                used.add(targetIdx);
+                continue;
+            }
+
+            int sourceIdx = findFirstUnusedItem(current, reservedItemId, used, markedIndices);
             if (sourceIdx >= 0) {
                 target[targetIdx] = current.get(sourceIdx);
                 used.add(sourceIdx);
@@ -248,7 +271,7 @@ public final class InventorySorter {
 
         List<SortableSlot> movable = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            if (used.contains(i)) {
+            if (used.contains(i) || markedIndices.contains(i)) {
                 continue;
             }
             SortableSlot slot = current.get(i);
@@ -269,9 +292,12 @@ public final class InventorySorter {
         return List.of(target);
     }
 
-    private static int findFirstUnusedItem(List<SortableSlot> current, String itemId, Set<Integer> used) {
+    private static int findFirstUnusedItem(List<SortableSlot> current,
+                                           String itemId,
+                                           Set<Integer> used,
+                                           Set<Integer> markedIndices) {
         for (int i = 0; i < current.size(); i++) {
-            if (used.contains(i)) {
+            if (used.contains(i) || markedIndices.contains(i)) {
                 continue;
             }
             SortableSlot slot = current.get(i);
