@@ -84,7 +84,16 @@ public class PermaworldConfig {
 
     public static class TraderConfig {
         public boolean enabled = true;
-        /** Hashes de ofertas marcadas como favoritas. */
+        /** Trades guardados globalmente: aplican a cualquier aldeano con la misma oferta. */
+        public Set<Integer> globalFavoriteTradeHashes = new HashSet<>();
+        /** Trades guardados por aldeano: villagerKey -> hashes de ofertas locales. */
+        public Map<String, Set<Integer>> localFavoriteTradeHashes = new HashMap<>();
+
+        /**
+         * @deprecated Campo antiguo de favoritos simples. Se migra a globalFavoriteTradeHashes
+         * al cargar la config para mantener compatibilidad con instalaciones previas.
+         */
+        @Deprecated
         public Set<Integer> favoriteTradeHashes = new HashSet<>();
     }
 

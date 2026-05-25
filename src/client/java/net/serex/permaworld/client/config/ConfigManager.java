@@ -51,6 +51,7 @@ public final class ConfigManager {
                 config = new PermaworldConfig();
                 save();
             }
+            migrate();
         } catch (IOException e) {
             Permaworld.LOGGER.error("No se pudo cargar permaworld.json, usando defaults", e);
             config = new PermaworldConfig();
@@ -65,6 +66,23 @@ public final class ConfigManager {
             }
         } catch (IOException e) {
             Permaworld.LOGGER.error("No se pudo guardar permaworld.json", e);
+        }
+    }
+
+    private void migrate() {
+        if (config.trader == null) {
+            config.trader = new PermaworldConfig.TraderConfig();
+        }
+        if (config.trader.globalFavoriteTradeHashes == null) {
+            config.trader.globalFavoriteTradeHashes = new java.util.HashSet<>();
+        }
+        if (config.trader.localFavoriteTradeHashes == null) {
+            config.trader.localFavoriteTradeHashes = new java.util.HashMap<>();
+        }
+        if (config.trader.favoriteTradeHashes != null && !config.trader.favoriteTradeHashes.isEmpty()) {
+            config.trader.globalFavoriteTradeHashes.addAll(config.trader.favoriteTradeHashes);
+            config.trader.favoriteTradeHashes.clear();
+            save();
         }
     }
 }
