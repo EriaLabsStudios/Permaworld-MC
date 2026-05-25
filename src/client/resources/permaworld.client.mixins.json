@@ -9,6 +9,7 @@
     "GuiMixin",
     "InventoryMixin",
     "LocalPlayerMixin",
+    "PackSelectionModelAccessor",
     "PackSelectionScreenMixin",
     "ScreenAccessor"
   ],

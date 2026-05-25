@@ -32,6 +32,12 @@ public final class ResourcePackFileManager {
                 .toList();
     }
 
+    public Optional<PackFile> findInstalledByPackId(PackRepository repository, String packId) {
+        return listInstalled(repository).stream()
+                .filter(pack -> pack.packId().filter(packId::equals).isPresent())
+                .findFirst();
+    }
+
     public List<PackFile> listArchived() {
         return listFiles(archiveDirectory).stream()
                 .map(path -> new PackFile(path, Optional.empty()))

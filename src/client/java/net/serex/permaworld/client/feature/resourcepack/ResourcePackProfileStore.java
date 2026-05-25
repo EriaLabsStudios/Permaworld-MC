@@ -28,6 +28,14 @@ public final class ResourcePackProfileStore {
         return data.profiles;
     }
 
+    public String activeProfileName() {
+        return data.activeProfileName == null ? "" : data.activeProfileName;
+    }
+
+    public void setActiveProfileName(String name) {
+        data.activeProfileName = name == null ? "" : name;
+    }
+
     public void upsert(String name, List<String> packIds) {
         Profile existing = find(name);
         if (existing != null) {
@@ -42,6 +50,9 @@ public final class ResourcePackProfileStore {
 
     public void delete(String name) {
         data.profiles.removeIf(profile -> profile.name.equals(name));
+        if (activeProfileName().equals(name)) {
+            data.activeProfileName = "";
+        }
     }
 
     public Profile find(String name) {
@@ -89,6 +100,7 @@ public final class ResourcePackProfileStore {
     }
 
     private static final class Data {
+        private String activeProfileName = "";
         private List<Profile> profiles = new ArrayList<>();
     }
 
