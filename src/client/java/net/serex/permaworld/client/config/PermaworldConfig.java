@@ -79,5 +79,9 @@ public class PermaworldConfig {
 
     public static class HarvestConfig {
         public boolean enabled = true;
+        public int stoneHoeArea = 1;
+        public int ironHoeArea = 2;
+        public int diamondHoeArea = 3;
+        public int netheriteHoeArea = 4;
     }
 }
