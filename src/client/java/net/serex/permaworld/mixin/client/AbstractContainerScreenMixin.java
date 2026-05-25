@@ -1,40 +1,67 @@
 package net.serex.permaworld.mixin.client;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.config.PermaworldConfig;
 import net.serex.permaworld.client.debug.DebugLog;
 import net.serex.permaworld.client.feature.slotlock.SlotLockManager;
+import net.serex.permaworld.client.feature.slotlock.SlotLockManager.SlotMark;
+import net.serex.permaworld.client.feature.slotlock.SlotLockManager.SlotMarkMode;
+import net.serex.permaworld.client.feature.slotlock.SlotMarkRenderer;
 import net.serex.permaworld.client.feature.sort.InventorySorter;
 import net.serex.permaworld.client.feature.sort.SortFeedback;
 import net.serex.permaworld.client.feature.sort.SortMode;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Mixin que añade la lógica de Slot Lock a cualquier pantalla con contenedor:
+ * Mixin que añade las marcas de slot a cualquier pantalla con contenedor:
  * <ul>
- *   <li>Si el jugador mantiene el modificador (por defecto ALT) y clickea un
- *       slot del inventario, se alterna el lock de ese slot.</li>
- *   <li>Si el slot está bloqueado y no se pulsa el modificador, el click se
- *       cancela: el item no se mueve.</li>
- *   <li>Al final de {@code extractSlot} se pinta una textura de candado sobre
- *       los slots bloqueados.</li>
+ *   <li>Dos botones laterales activan modo Favorito o Lock.</li>
+ *   <li>Los clicks sobre slots del inventario del jugador guardan una marca
+ *       persistente por índice de slot.</li>
+ *   <li>Al final de {@code extractSlot} se pinta la marca o el item fantasma.</li>
  * </ul>
  */
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin {
+
+    @Unique
+    private Button permaworld$favoriteMarkButton;
+
+    @Unique
+    private Button permaworld$lockMarkButton;
+
+    @Unique
+    private final Set<Integer> permaworld$dragProcessedSlots = new HashSet<>();
+
+    @Unique
+    private SlotMarkMode permaworld$dragMode;
+
+    @Unique
+    private boolean permaworld$dragShouldMark;
+
+    @Shadow
+    @Final
+    protected AbstractContainerMenu menu;
 
     @Shadow
     protected int leftPos;
@@ -50,13 +77,21 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$sort$addButtons(CallbackInfo ci) {
-        if (!ConfigManager.get().config().sort.enabled) {
-            return;
-        }
         if (isCreativeInventoryScreen()) {
+            SlotLockManager.clearActiveMode();
             return;
         }
 
+        if (ConfigManager.get().config().sort.enabled) {
+            addSortButtons();
+        }
+        if (ConfigManager.get().config().slotLock.enabled) {
+            addSlotMarkButtons();
+        }
+    }
+
+    @Unique
+    private void addSortButtons() {
         PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
         int buttonSize = Math.max(8, sort.buttonSize);
         int gap = Math.max(0, sort.buttonGap);
@@ -67,6 +102,50 @@ public abstract class AbstractContainerScreenMixin {
         addSortButton(x, y, buttonSize, "A", SortMode.NAME);
         addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
         addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
+    }
+
+    @Unique
+    private void addSlotMarkButtons() {
+        int size = 14;
+        int gap = 2;
+        int x = this.leftPos + this.imageWidth + 4;
+        int y = this.topPos + this.imageHeight - size * 2 - gap - 36;
+
+        permaworld$favoriteMarkButton = addMarkButton(
+                x, y, size, SlotMarkMode.FAVORITE,
+                "★", "permaworld.slotmark.tooltip.favorite");
+        permaworld$lockMarkButton = addMarkButton(
+                x, y + size + gap, size, SlotMarkMode.LOCK,
+                "L", "permaworld.slotmark.tooltip.lock");
+        updateSlotMarkButtonLabels();
+    }
+
+    @Unique
+    private Button addMarkButton(int x, int y, int size, SlotMarkMode mode, String label, String tooltipKey) {
+        Button button = Button.builder(markButtonLabel(mode, label), ignored -> {
+                    SlotLockManager.toggleActiveMode(mode);
+                    updateSlotMarkButtonLabels();
+                })
+                .bounds(x, y, size, size)
+                .tooltip(Tooltip.create(Component.translatable(tooltipKey)))
+                .build();
+        ((ScreenAccessor) this).permaworld$addRenderableWidget(button);
+        return button;
+    }
+
+    @Unique
+    private void updateSlotMarkButtonLabels() {
+        if (permaworld$favoriteMarkButton != null) {
+            permaworld$favoriteMarkButton.setMessage(markButtonLabel(SlotMarkMode.FAVORITE, "★"));
+        }
+        if (permaworld$lockMarkButton != null) {
+            permaworld$lockMarkButton.setMessage(markButtonLabel(SlotMarkMode.LOCK, "L"));
+        }
+    }
+
+    @Unique
+    private Component markButtonLabel(SlotMarkMode mode, String label) {
+        return Component.literal(SlotLockManager.isActiveMode(mode) ? "[" + label + "]" : label);
     }
 
     private int sortButtonY(int buttonSize, PermaworldConfig.SortConfig sort) {
@@ -106,30 +185,207 @@ public abstract class AbstractContainerScreenMixin {
             DebugLog.log("slotlock", "Feature desactivada en config; se ignora.");
             return;
         }
+        if (isCreativeInventoryScreen()) {
+            return;
+        }
         if (slot == null) return;
+
+        if (input == ContainerInput.QUICK_MOVE
+                && ConfigManager.get().config().slotLock.protectPickup
+                && permaworld$quickMoveHasNoSafeTarget(slot)) {
+            DebugLog.log("slotlock", "Shift-click cancelado: no hay destino valido para {}.",
+                    SlotLockManager.itemIdOf(slot.getItem()));
+            SlotLockManager.warnReservedSlot();
+            ci.cancel();
+            return;
+        }
+
+        SlotMarkMode activeMode = SlotLockManager.activeMode();
+        if (activeMode != null) {
+            if (button != 0 && button != 1) {
+                ci.cancel();
+                return;
+            }
+
+            boolean shouldMark = button == 0;
+            permaworld$beginDragBrush(activeMode, shouldMark);
+            boolean changed = permaworld$applyDragBrush(slot);
+            DebugLog.log("slotlock", "Modo {} sobre slot {} (mark={} changed={}).",
+                    activeMode, slot.getContainerSlot(), shouldMark, changed);
+            ci.cancel();
+            return;
+        }
 
         boolean modifier = SlotLockManager.modifierDown();
         String itemId = SlotLockManager.itemIdOf(slot.getItem());
         DebugLog.log("slotlock", "itemId={} modifierDown={}.", itemId, modifier);
 
         if (modifier) {
-            // ALT + click → toggle lock del item que haya en el slot.
-            // No restringimos al Inventory del jugador: así también funciona en
-            // Creativo (donde los slots no apuntan a player.getInventory()) y
-            // sobre cofres/contenedores externos para marcar el item como favorito.
-            String toggled = SlotLockManager.toggle(slot);
-            DebugLog.log("slotlock", "Toggle lock sobre item={} (locked ahora={}).",
-                    toggled, SlotLockManager.isLockedId(toggled));
+            boolean toggled = SlotLockManager.toggleSlotMark(slot, SlotMarkMode.LOCK);
+            DebugLog.log("slotlock", "ALT toggle lock sobre slot {} (toggled={}).",
+                    slot.getContainerSlot(), toggled);
             ci.cancel();
             return;
         }
 
         if (SlotLockManager.isSlotLocked(slot)) {
-            // Bloqueado: cancelamos cualquier interacción Vanilla con el slot.
+            // Lock: cancelamos cualquier interacción Vanilla con el slot.
             DebugLog.log("slotlock", "Click cancelado en slot con item bloqueado item={} (button={}).",
                     itemId, button);
             ci.cancel();
+            return;
         }
+
+        ItemStack carried = SlotLockManager.hasPlayer()
+                ? net.minecraft.client.Minecraft.getInstance().player.containerMenu.getCarried()
+                : ItemStack.EMPTY;
+        if (!SlotLockManager.canPlaceInReservedSlot(slot, carried)) {
+            DebugLog.log("slotlock", "Click cancelado: slot favorito reservado para otro item.");
+            SlotLockManager.warnReservedSlot();
+            ci.cancel();
+        }
+    }
+
+    @Unique
+    private boolean permaworld$quickMoveHasNoSafeTarget(Slot source) {
+        if (!SlotLockManager.isPlayerInventorySlot(source)) {
+            return false;
+        }
+
+        ItemStack stack = source.getItem();
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        if (permaworld$hasSafeExternalTarget(source, stack)) {
+            return false;
+        }
+
+        int sourceInventorySlot = source.getContainerSlot();
+        int start = sourceInventorySlot < 9 ? 9 : 0;
+        int end = sourceInventorySlot < 9 ? 36 : 9;
+        return !permaworld$hasSafePlayerInventoryTarget(source, stack, start, end);
+    }
+
+    @Unique
+    private boolean permaworld$hasSafeExternalTarget(Slot source, ItemStack stack) {
+        for (Slot target : this.menu.slots) {
+            if (target == source || target.container == source.container || !target.isActive()) {
+                continue;
+            }
+            if (permaworld$canSlotAccept(target, stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private boolean permaworld$hasSafePlayerInventoryTarget(Slot source, ItemStack stack, int start, int end) {
+        for (Slot target : this.menu.slots) {
+            if (target == source || target.container != source.container || !target.isActive()) {
+                continue;
+            }
+            int inventorySlot = target.getContainerSlot();
+            if (inventorySlot < start || inventorySlot >= end) {
+                continue;
+            }
+            if (permaworld$canSlotAccept(target, stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private boolean permaworld$canSlotAccept(Slot target, ItemStack stack) {
+        if (!target.mayPlace(stack)) {
+            return false;
+        }
+
+        if (SlotLockManager.isPlayerInventorySlot(target)
+                && !SlotLockManager.canPickupUseInventorySlot(target.getContainerSlot(), stack)) {
+            return false;
+        }
+
+        ItemStack current = target.getItem();
+        if (current.isEmpty()) {
+            return true;
+        }
+        return ItemStack.isSameItemSameComponents(current, stack)
+                && current.getCount() < Math.min(current.getMaxStackSize(), target.getMaxStackSize(current));
+    }
+
+    @Inject(method = "mouseDragged(Lnet/minecraft/client/input/MouseButtonEvent;DD)Z", at = @At("HEAD"), cancellable = true)
+    private void permaworld$slotLock$dragSlotMarks(MouseButtonEvent event, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
+        if (!ConfigManager.get().config().slotLock.enabled || isCreativeInventoryScreen()) {
+            permaworld$endDragBrush();
+            return;
+        }
+        SlotMarkMode activeMode = SlotLockManager.activeMode();
+        if (activeMode == null || (event.button() != 0 && event.button() != 1)) {
+            permaworld$endDragBrush();
+            return;
+        }
+        if (!ConfigManager.get().config().slotLock.dragBrush) {
+            cir.setReturnValue(true);
+            return;
+        }
+
+        Slot hovered = permaworld$slotAt(event.x(), event.y());
+        if (hovered != null && SlotLockManager.isPlayerInventorySlot(hovered)) {
+            if (permaworld$dragMode == null) {
+                permaworld$beginDragBrush(activeMode, event.button() == 0);
+            }
+            permaworld$applyDragBrush(hovered);
+        }
+        cir.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseReleased(Lnet/minecraft/client/input/MouseButtonEvent;)Z", at = @At("HEAD"))
+    private void permaworld$slotLock$releaseSlotMarkDrag(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        permaworld$endDragBrush();
+    }
+
+    @Unique
+    private void permaworld$beginDragBrush(SlotMarkMode mode, boolean shouldMark) {
+        if (permaworld$dragMode == mode && permaworld$dragShouldMark == shouldMark) {
+            return;
+        }
+        permaworld$dragMode = mode;
+        permaworld$dragShouldMark = shouldMark;
+        permaworld$dragProcessedSlots.clear();
+    }
+
+    @Unique
+    private boolean permaworld$applyDragBrush(Slot slot) {
+        if (permaworld$dragMode == null || !SlotLockManager.isPlayerInventorySlot(slot)) {
+            return false;
+        }
+        int inventorySlot = slot.getContainerSlot();
+        if (!permaworld$dragProcessedSlots.add(inventorySlot)) {
+            return false;
+        }
+        return SlotLockManager.applySlotMark(slot, permaworld$dragMode, permaworld$dragShouldMark);
+    }
+
+    @Unique
+    private void permaworld$endDragBrush() {
+        permaworld$dragMode = null;
+        permaworld$dragShouldMark = false;
+        permaworld$dragProcessedSlots.clear();
+    }
+
+    @Unique
+    private Slot permaworld$slotAt(double mouseX, double mouseY) {
+        for (Slot slot : this.menu.slots) {
+            int x = this.leftPos + slot.x;
+            int y = this.topPos + slot.y;
+            if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+                return slot;
+            }
+        }
+        return null;
     }
 
     @Inject(
@@ -144,27 +400,26 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         if (!ConfigManager.get().config().slotLock.enabled) return;
+        if (isCreativeInventoryScreen()) return;
 
         boolean modifier = SlotLockManager.modifierDown();
-        boolean locked = SlotLockManager.isSlotLocked(slot);
+        SlotMark mark = SlotLockManager.markForSlot(slot);
 
-        // Feedback "modo favorito": mientras se mantiene ALT, tintamos
-        // ligeramente todos los slots para indicar que estamos en modo de
-        // marcar/desmarcar favoritos. Color ámbar semitransparente.
-        if (modifier) {
-            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x40FFC400);
+        if (SlotLockManager.activeMode() != null && SlotLockManager.isPlayerInventorySlot(slot)) {
+            int color = SlotLockManager.activeMode() == SlotMarkMode.LOCK ? 0x402A7FFF : 0x40FFC400;
+            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, color);
+        } else if (modifier && SlotLockManager.isPlayerInventorySlot(slot)) {
+            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x30FFC400);
         }
 
-        if (!locked) return;
+        if (mark == null) return;
 
-        // Estrella pequeña (8x8) en la esquina superior derecha del slot.
-        // La textura es 16x16 nativa; la sobrecarga de blit con uWidth/vHeight
-        // permite escalarla al tamaño deseado.
-        RenderPipeline pipeline = RenderPipelines.GUI_TEXTURED;
-        int size = 8;
-        int x = slot.x + 16 - size + 1; // +1 para que sobresalga un poco a la derecha
-        int y = slot.y - 1;             // -1 para que sobresalga un poco arriba
-        extractor.blit(pipeline, SlotLockManager.LOCK_TEXTURE,
-                x, y, 0.0F, 0.0F, size, size, 16, 16, 16, 16);
+        ItemStack ghost = SlotLockManager.ghostStack(slot);
+        if (!ghost.isEmpty()) {
+            extractor.fakeItem(ghost, slot.x, slot.y);
+            extractor.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x99000000);
+        }
+
+        SlotMarkRenderer.renderIcon(extractor, slot.x, slot.y, mark.mode());
     }
 }

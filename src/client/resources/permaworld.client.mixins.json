@@ -6,6 +6,9 @@
   "client": [
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenAccessor",
+    "GuiMixin",
+    "InventoryMixin",
+    "LocalPlayerMixin",
     "ScreenAccessor"
   ],
   "injectors": {

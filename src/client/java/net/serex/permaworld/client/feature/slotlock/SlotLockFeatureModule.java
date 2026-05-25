@@ -1,5 +1,6 @@
 package net.serex.permaworld.client.feature.slotlock;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.serex.permaworld.client.feature.FeatureModule;
 
 /**
@@ -12,7 +13,6 @@ public final class SlotLockFeatureModule implements FeatureModule {
 
     @Override
     public void onClientInit() {
-        // El Mixin se carga automáticamente al arrancar el cliente.
-        // Nada que registrar runtime de momento.
+        ClientTickEvents.END_CLIENT_TICK.register(SlotPickupProtector::tick);
     }
 }
