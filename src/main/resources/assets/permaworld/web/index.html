@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/app.css">
 </head>
 <body>
+<div class="glossy-overlay"></div>
 <div class="app">
     <header class="topbar">
         <div>
@@ -14,6 +15,14 @@
             <p>Minecraft admin recovery console</p>
         </div>
         <div class="topbar-actions">
+            <div class="topbar-slider">
+                <span>Glossy</span>
+                <input id="glossySlider" type="range" min="0" max="100" value="50" class="mc-slider">
+            </div>
+            <label class="admin-pick" style="margin-right: 16px;">
+                <span>Mi Usuario</span>
+                <select id="myUserSelect"></select>
+            </label>
             <label class="admin-pick">
                 <span>Admin</span>
                 <select id="adminSelect"></select>
@@ -29,8 +38,8 @@
         <section class="timeline panel">
             <div class="toolbar">
                 <div id="filterBar" class="filter-bar">
-                    <button data-filter="DEATH" class="mc-button is-active">Deaths</button>
-                    <button data-filter="ALL" class="mc-button">All</button>
+                    <button data-filter="ALL" class="mc-button is-active">All</button>
+                    <button data-filter="DEATH" class="mc-button">Deaths</button>
                     <button data-filter="PATH_SAMPLE" class="mc-button">Path</button>
                     <button data-filter="GAME_MODE_CHANGE" class="mc-button">Game Mode</button>
                     <button data-filter="DIMENSION_CHANGE" class="mc-button">Dimension</button>

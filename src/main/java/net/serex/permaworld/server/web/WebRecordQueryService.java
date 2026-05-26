@@ -165,6 +165,8 @@ public final class WebRecordQueryService {
         JsonArray highlights = new JsonArray();
         highlights.add(WebDtos.stat("deaths", "Deaths", stats.getValue(Stats.CUSTOM, Stats.DEATHS), Integer.toString(stats.getValue(Stats.CUSTOM, Stats.DEATHS))));
         highlights.add(WebDtos.stat("play_time", "Play Time", stats.getValue(Stats.CUSTOM, Stats.PLAY_TIME), formatTicks(stats.getValue(Stats.CUSTOM, Stats.PLAY_TIME))));
+        highlights.add(WebDtos.stat("time_since_death", "Time Since Death", stats.getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH), formatTicks(stats.getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH))));
+        highlights.add(WebDtos.stat("days_survived", "Days Survived", stats.getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH) / 24000, (stats.getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH) / 24000) + " dias"));
         highlights.add(WebDtos.stat("distance", "Distance", totalDistance(stats), formatDistance(totalDistance(stats))));
         highlights.add(WebDtos.stat("mob_kills", "Mob Kills", stats.getValue(Stats.CUSTOM, Stats.MOB_KILLS), Integer.toString(stats.getValue(Stats.CUSTOM, Stats.MOB_KILLS))));
         payload.add("highlights", highlights);

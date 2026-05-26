@@ -76,6 +76,14 @@ public final class PermaworldHttpServer {
                 serveAsset(exchange, "assets/permaworld/web/app.js", "application/javascript; charset=utf-8");
                 return;
             }
+            if ("/background.png".equals(path)) {
+                serveAsset(exchange, "assets/permaworld/web/background.png", "image/png");
+                return;
+            }
+            if ("/background.jpg".equals(path)) {
+                serveAsset(exchange, "assets/permaworld/web/background.jpg", "image/jpeg");
+                return;
+            }
             if ("/api/session".equals(path)) {
                 writeJson(exchange, queryService.sessionData());
                 return;

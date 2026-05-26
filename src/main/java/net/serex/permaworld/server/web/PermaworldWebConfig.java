@@ -71,10 +71,10 @@ public record PermaworldWebConfig(boolean enabled, String host, int port) {
 
         try (OutputStream output = Files.newOutputStream(path)) {
             properties.store(output, """
-                    Permaworld embedded web server
-                    enabled=false deshabilita el levantamiento automatico
-                    host deberia quedarse en 127.0.0.1 salvo que anadas seguridad real
-                    port es la URL local que abrira el navegador
+                    Servidor Web Embebido de Permaworld
+                    enabled=true (true para activar la web al iniciar el juego/servidor, false para desactivarla)
+                    host=127.0.0.1 (Establece a 0.0.0.0 para permitir el acceso desde el exterior en tu servidor de Minecraft)
+                    port=7821 (Puerto HTTP en el que se abrira la consola y estadisticas web)
                     """.stripIndent().trim());
         }
     }

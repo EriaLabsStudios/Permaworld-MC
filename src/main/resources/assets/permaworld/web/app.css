@@ -473,3 +473,112 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Uniform Record Cards styling */
+.record-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 92px;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-align: left;
+    width: 100%;
+}
+.record-content-wrapper {
+    overflow: hidden;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.record-card h3 {
+    margin: 0 0 2px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem !important;
+}
+.record-card .record-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.record-card .record-note {
+    font-size: 11px;
+    color: #a0a0a0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Custom page background image and glossy settings */
+body {
+    background-image: url('/background.png'), url('/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-color: #121418;
+}
+
+.glossy-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    background: rgba(18, 20, 26, var(--glossy-opacity, 0.5));
+    backdrop-filter: blur(var(--glossy-blur, 10px));
+    -webkit-backdrop-filter: blur(var(--glossy-blur, 10px));
+    pointer-events: none;
+    transition: background 0.05s ease, backdrop-filter 0.05s ease;
+}
+
+/* Minecraft range slider styling */
+.mc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 20px;
+    background: #1e1e24;
+    border: 3px solid #050505;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    outline: none;
+    margin: 0;
+    vertical-align: middle;
+}
+.mc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 14px;
+    background: linear-gradient(180deg, #8c949c 0, #5c6268 100%);
+    border: 2px solid #050505;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+}
+.mc-slider::-moz-range-thumb {
+    width: 12px;
+    height: 14px;
+    background: linear-gradient(180deg, #8c949c 0, #5c6268 100%);
+    border: 2px solid #050505;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+}
+.topbar-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: bold;
+    margin-right: 16px;
+}
+.topbar-slider span {
+    text-shadow: 1px 1px 0 #000;
+}

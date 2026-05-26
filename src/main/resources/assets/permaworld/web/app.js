@@ -3,13 +3,14 @@ const state = {
   selectedAdmin: "",
   players: [],
   selectedPlayer: null,
-  filter: "DEATH",
+  filter: "ALL",
   records: [],
   selectedRecord: null,
   stats: null,
 };
 
 const adminSelect = document.querySelector("#adminSelect");
+const myUserSelect = document.querySelector("#myUserSelect");
 const playerSearch = document.querySelector("#playerSearch");
 const playerList = document.querySelector("#playerList");
 const filterBar = document.querySelector("#filterBar");
@@ -32,7 +33,32 @@ async function boot() {
 
   const playersPayload = await loadJson("/api/players");
   state.players = playersPayload.players ?? [];
-  state.selectedPlayer = state.players[0] ?? null;
+
+  renderMyUsers();
+
+  const savedUserUuid = localStorage.getItem("permaworld_my_user");
+  let foundPlayer = null;
+  if (savedUserUuid) {
+    foundPlayer = state.players.find((p) => p.uuid === savedUserUuid);
+  }
+
+  if (foundPlayer) {
+    state.selectedPlayer = foundPlayer;
+    myUserSelect.value = savedUserUuid;
+  } else {
+    state.selectedPlayer = state.players[0] ?? null;
+    myUserSelect.value = state.selectedPlayer ? state.selectedPlayer.uuid : "";
+  }
+
+  // Load glossy opacity from localStorage
+  const savedGlossy = localStorage.getItem("permaworld_glossy_opacity");
+  const initialGlossy = savedGlossy !== null ? parseInt(savedGlossy, 10) : 50;
+  const glossySlider = document.querySelector("#glossySlider");
+  if (glossySlider) {
+    glossySlider.value = initialGlossy;
+    updateGlossy(initialGlossy);
+  }
+
   renderPlayers();
   bindEvents();
 
@@ -48,6 +74,33 @@ function bindEvents() {
   adminSelect.addEventListener("change", () => {
     state.selectedAdmin = adminSelect.value;
   });
+  myUserSelect.addEventListener("change", async () => {
+    const selectedUuid = myUserSelect.value;
+    if (selectedUuid) {
+      localStorage.setItem("permaworld_my_user", selectedUuid);
+      const player = state.players.find((p) => p.uuid === selectedUuid);
+      if (player) {
+        state.selectedPlayer = player;
+      }
+    } else {
+      localStorage.removeItem("permaworld_my_user");
+      if (state.players[0]) {
+        state.selectedPlayer = state.players[0];
+      }
+    }
+    renderPlayers();
+    await loadCurrentView();
+  });
+  
+  const glossySlider = document.querySelector("#glossySlider");
+  if (glossySlider) {
+    glossySlider.addEventListener("input", () => {
+      const val = parseInt(glossySlider.value, 10);
+      localStorage.setItem("permaworld_glossy_opacity", val);
+      updateGlossy(val);
+    });
+  }
+
   playerSearch.addEventListener("input", renderPlayers);
   filterBar.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-filter]");
@@ -72,6 +125,21 @@ function renderAdmins() {
   }
 }
 
+function renderMyUsers() {
+  myUserSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "-- Seleccionar --";
+  myUserSelect.append(placeholder);
+
+  for (const player of state.players) {
+    const option = document.createElement("option");
+    option.value = player.uuid;
+    option.textContent = player.playerName;
+    myUserSelect.append(option);
+  }
+}
+
 function renderPlayers() {
   const term = playerSearch.value.trim().toLowerCase();
   playerList.innerHTML = "";
@@ -84,7 +152,7 @@ function renderPlayers() {
       card.classList.add("active");
     }
     card.innerHTML = `
-      <img class="player-head" src="https://crafatar.com/avatars/${player.uuid}?size=32&default=MHF_Steve" alt="${player.playerName}">
+      <img class="player-head" src="https://minotar.net/helm/${player.playerName}/32.png" alt="${player.playerName}">
       <div class="player-info-wrapper">
         <h3>${player.playerName}</h3>
         <div class="record-meta">${player.recordCount} logs · ${player.lastReason}</div>
@@ -92,6 +160,8 @@ function renderPlayers() {
     `;
     card.addEventListener("click", async () => {
       state.selectedPlayer = player;
+      myUserSelect.value = player.uuid;
+      localStorage.setItem("permaworld_my_user", player.uuid);
       renderPlayers();
       await loadCurrentView();
     });
@@ -146,6 +216,42 @@ async function loadStats() {
   renderStatsDetail();
 }
 
+function getRecordIcon(record) {
+  if (record.advancementIconItemId) {
+    return record.advancementIconItemId;
+  }
+  
+  const reason = (record.reason || "").toUpperCase();
+  
+  if (reason.includes("DEATH")) {
+    return "minecraft:skeleton_skull";
+  }
+  if (reason.includes("JOIN")) {
+    return "minecraft:compass";
+  }
+  if (reason.includes("DISCONNECT") || reason.includes("QUIT") || reason.includes("LEFT")) {
+    return "minecraft:barrier";
+  }
+  if (reason.includes("RESPAWN")) {
+    return "minecraft:red_bed";
+  }
+  if (reason.includes("DIMENSION")) {
+    return "minecraft:ender_eye";
+  }
+  if (reason.includes("GAME_MODE") || reason.includes("GAMEMODE")) {
+    return "minecraft:command_block";
+  }
+  if (reason.includes("SNAPSHOT")) {
+    return "minecraft:chest";
+  }
+  if (reason.includes("PATH") || reason.includes("ROUTE") || reason.includes("WALK")) {
+    return "minecraft:map";
+  }
+  
+  // General fallback
+  return "minecraft:paper";
+}
+
 function renderRecords() {
   recordList.classList.remove("stats-view");
   recordList.classList.toggle("advancement-view", state.filter === "ADVANCEMENT_DONE");
@@ -163,13 +269,15 @@ function renderRecords() {
     if (state.selectedRecord && state.selectedRecord.id === record.id) {
       card.classList.add("active");
     }
-    const icon = record.advancementIconItemId
-      ? renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)
-      : "";
+    
+    const iconId = getRecordIcon(record);
+    const iconLabel = record.advancementIconLabel || record.advancementTitle || record.reason;
+    const iconHtml = renderItemIcon(iconId, iconLabel);
+
     card.innerHTML = `
       <div class="record-main">
-        ${icon ? `<div class="slot-icon large">${icon}</div>` : ""}
-        <div>
+        <div class="slot-icon large">${iconHtml}</div>
+        <div class="record-content-wrapper">
           <div class="record-header">
             <h3>${record.reason}</h3>
             <span class="reason-pill">${record.itemCount} items</span>
@@ -543,6 +651,7 @@ function formatTime(value) {
   return date.toLocaleString();
 }
 
+// Map stats keys to standard premium item textures
 function getStatIcon(key) {
   switch (key) {
     case "deaths":
@@ -553,6 +662,10 @@ function getStatIcon(key) {
       return "minecraft:leather_boots";
     case "mob_kills":
       return "minecraft:diamond_sword";
+    case "time_since_death":
+      return "minecraft:recovery_compass";
+    case "days_survived":
+      return "minecraft:sunflower";
     default:
       return "";
   }
@@ -568,6 +681,10 @@ function getStatDescription(key) {
       return "Total distance traversed by the player across all dimensions.";
     case "mob_kills":
       return "Number of aggressive and passive mobs defeated.";
+    case "time_since_death":
+      return "Real-life time elapsed since this player's last death.";
+    case "days_survived":
+      return "Minecraft in-game days successfully survived since the player's last death.";
     default:
       return "";
   }
@@ -754,3 +871,12 @@ function initTooltip() {
 boot().catch((error) => {
   recordDetail.innerHTML = `<div class="status error">${error.message}</div>`;
 });
+
+function updateGlossy(value) {
+  const decimal = value / 100;
+  // Set glossy opacity between 0.05 (almost fully clear) and 0.85 (deep dark glass blur)
+  const opacity = 0.05 + (decimal * 0.80);
+  const blur = decimal * 24; // Blur up to 24px
+  document.documentElement.style.setProperty("--glossy-opacity", opacity);
+  document.documentElement.style.setProperty("--glossy-blur", `${blur}px`);
+}

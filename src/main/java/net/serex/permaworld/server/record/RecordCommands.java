@@ -31,7 +31,14 @@ public final class RecordCommands {
             .withZone(ZoneId.systemDefault());
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(literal("permaworld").then(newLogCommands()));
+        dispatcher.register(literal("permaworld")
+                .then(newLogCommands())
+                .then(literal("web")
+                        .requires(source -> hasPermission(source, 2))
+                        .then(literal("reload")
+                                .executes(context -> reloadWeb(context.getSource())))
+                        .then(literal("status")
+                                .executes(context -> statusWeb(context.getSource())))));
         dispatcher.register(legacyLogCommands());
     }
 
@@ -316,5 +323,33 @@ public final class RecordCommands {
         } catch (RuntimeException ignored) {
             return timestamp;
         }
+    }
+
+    private int reloadWeb(CommandSourceStack source) {
+        net.serex.permaworld.server.web.PermaworldWebFeature feature = net.serex.permaworld.server.web.PermaworldWebFeature.getInstance();
+        if (feature == null) {
+            source.sendFailure(Component.literal("Caracteristica web no registrada."));
+            return 0;
+        }
+        boolean active = feature.reload(source.getServer());
+        if (active) {
+            source.sendSuccess(() -> Component.literal("Servidor web de Permaworld recargado y " + feature.getStatusString())
+                    .withStyle(net.minecraft.ChatFormatting.GREEN), true);
+        } else {
+            source.sendSuccess(() -> Component.literal("Servidor web de Permaworld recargado y detenido (deshabilitado o fallido en la carga de config).")
+                    .withStyle(net.minecraft.ChatFormatting.YELLOW), true);
+        }
+        return 1;
+    }
+
+    private int statusWeb(CommandSourceStack source) {
+        net.serex.permaworld.server.web.PermaworldWebFeature feature = net.serex.permaworld.server.web.PermaworldWebFeature.getInstance();
+        if (feature == null) {
+            source.sendFailure(Component.literal("Caracteristica web no registrada."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Servidor web de Permaworld " + feature.getStatusString())
+                .withStyle(net.minecraft.ChatFormatting.GRAY), false);
+        return 1;
     }
 }
