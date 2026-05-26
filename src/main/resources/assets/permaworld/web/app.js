@@ -106,27 +106,33 @@ async function loadCurrentView() {
 }
 
 async function loadRecords() {
-  state.selectedRecord = null;
-  state.stats = null;
+  try {
+    state.selectedRecord = null;
+    state.stats = null;
 
-  if (state.filter === "ADVANCEMENT_DONE" && !state.allAdvancements) {
-    try {
-      state.allAdvancements = await loadJson("/api/advancements");
-    } catch (e) {
-      state.allAdvancements = [];
+    if (state.filter === "ADVANCEMENT_DONE" && !state.allAdvancements) {
+      try {
+        state.allAdvancements = await loadJson("/api/advancements");
+      } catch (e) {
+        console.warn("Failed to load advancements from API, falling back to completed only:", e);
+        state.allAdvancements = [];
+      }
     }
-  }
 
-  const payload = await loadJson(`/api/players/${state.selectedPlayer.uuid}/records?filter=${encodeURIComponent(state.filter)}`);
-  state.records = payload.records ?? [];
-  renderRecords();
-  
-  if (state.filter === "ADVANCEMENT_DONE") {
-    renderAdvancementPlaceholder();
-  } else if (state.records[0]) {
-    await selectRecord(state.records[0].id);
-  } else {
-    recordDetail.innerHTML = '<div class="empty">No records for this filter.</div>';
+    const payload = await loadJson(`/api/players/${state.selectedPlayer.uuid}/records?filter=${encodeURIComponent(state.filter)}`);
+    state.records = payload.records ?? [];
+    renderRecords();
+    
+    if (state.filter === "ADVANCEMENT_DONE") {
+      renderAdvancementPlaceholder();
+    } else if (state.records[0]) {
+      await selectRecord(state.records[0].id);
+    } else {
+      recordDetail.innerHTML = '<div class="empty">No records for this filter.</div>';
+    }
+  } catch (error) {
+    console.error("Error loading records:", error);
+    recordList.innerHTML = `<div class="status error">Error loading records: ${error.message}</div>`;
   }
 }
 
@@ -177,89 +183,100 @@ function renderRecords() {
 }
 
 function renderAdvancementGrid() {
-  const hasAllAdv = state.allAdvancements && state.allAdvancements.length > 0;
-  
-  if (!hasAllAdv && !state.records.length) {
-    recordList.innerHTML = '<div class="empty">No advancements recorded yet.</div>';
-    return;
-  }
-
-  const grid = document.createElement("div");
-  grid.className = "advancement-grid";
-
-  if (hasAllAdv) {
-    for (const adv of state.allAdvancements) {
-      const completedRecord = state.records.find((r) => r.advancementId === adv.id);
-      const isCompleted = !!completedRecord;
-
-      const tile = document.createElement("button");
-      tile.type = "button";
-      tile.className = "advancement-tile";
-      
-      const frameClass = (adv.frame || "task").toLowerCase();
-      tile.classList.add(frameClass);
-      if (!isCompleted) {
-        tile.classList.add("locked");
-      }
-      
-      const isSelected = state.selectedRecord && 
-        (isCompleted ? state.selectedRecord.id === completedRecord.id : state.selectedRecord.advancementId === adv.id);
-      if (isSelected) {
-        tile.classList.add("active");
-      }
-
-      // Add custom metadata for the tooltip engine
-      tile.dataset.title = adv.title || "Advancement";
-      tile.dataset.description = adv.description || "";
-      tile.dataset.frame = adv.frame || "task";
-      tile.dataset.status = isCompleted ? "COMPLETED" : "LOCKED";
-      if (isCompleted) {
-        tile.dataset.dimension = completedRecord.dimension || "unknown";
-        tile.dataset.timestamp = formatTime(completedRecord.timestamp);
-      }
-
-      tile.setAttribute("aria-label", adv.title || "Advancement");
-      tile.innerHTML = `
-        <div class="slot-icon large">${renderItemIcon(adv.iconItemId, adv.iconLabel || adv.title)}</div>
-      `;
-      
-      if (isCompleted) {
-        tile.addEventListener("click", () => selectRecord(completedRecord.id));
-      } else {
-        tile.addEventListener("click", () => selectLockedAdvancement(adv));
-      }
-      grid.append(tile);
+  try {
+    const hasAllAdv = state.allAdvancements && state.allAdvancements.length > 0;
+    
+    if (!hasAllAdv && (!state.records || !state.records.length)) {
+      recordList.innerHTML = '<div class="empty">No advancements recorded yet.</div>';
+      return;
     }
-  } else {
-    // Fallback: render only completed ones from records
-    for (const record of state.records) {
-      const tile = document.createElement("button");
-      tile.type = "button";
-      tile.className = "advancement-tile";
-      const frameClass = (record.advancementFrame || "task").toLowerCase();
-      tile.classList.add(frameClass);
-      if (state.selectedRecord && state.selectedRecord.id === record.id) {
-        tile.classList.add("active");
+
+    const grid = document.createElement("div");
+    grid.className = "advancement-grid";
+
+    if (hasAllAdv) {
+      for (const adv of state.allAdvancements) {
+        if (!adv || !adv.id) continue;
+
+        const completedRecord = (state.records || []).find((r) => r && r.advancementId === adv.id);
+        const isCompleted = !!completedRecord;
+
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "advancement-tile";
+        
+        const frameClass = (adv.frame || "task").toLowerCase();
+        tile.classList.add(frameClass);
+        if (!isCompleted) {
+          tile.classList.add("locked");
+        }
+        
+        const isSelected = state.selectedRecord && 
+          (isCompleted 
+            ? (completedRecord && state.selectedRecord.id === completedRecord.id) 
+            : state.selectedRecord.advancementId === adv.id);
+            
+        if (isSelected) {
+          tile.classList.add("active");
+        }
+
+        // Add custom metadata for the tooltip engine
+        tile.dataset.title = adv.title || "Advancement";
+        tile.dataset.description = adv.description || "";
+        tile.dataset.frame = adv.frame || "task";
+        tile.dataset.status = isCompleted ? "COMPLETED" : "LOCKED";
+        if (isCompleted && completedRecord) {
+          tile.dataset.dimension = completedRecord.dimension || "unknown";
+          tile.dataset.timestamp = formatTime(completedRecord.timestamp);
+        }
+
+        tile.setAttribute("aria-label", adv.title || "Advancement");
+        tile.innerHTML = `
+          <div class="slot-icon large">${renderItemIcon(adv.iconItemId, adv.iconLabel || adv.title)}</div>
+        `;
+        
+        if (isCompleted && completedRecord) {
+          tile.addEventListener("click", () => selectRecord(completedRecord.id));
+        } else {
+          tile.addEventListener("click", () => selectLockedAdvancement(adv));
+        }
+        grid.append(tile);
       }
-      
-      tile.dataset.title = record.advancementTitle || record.reason || "Advancement";
-      tile.dataset.description = record.advancementDescription || "";
-      tile.dataset.frame = record.advancementFrame || "task";
-      tile.dataset.status = "COMPLETED";
-      tile.dataset.dimension = record.dimension || "unknown";
-      tile.dataset.timestamp = formatTime(record.timestamp);
+    } else {
+      // Fallback: render only completed ones from records
+      for (const record of (state.records || [])) {
+        if (!record) continue;
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "advancement-tile";
+        const frameClass = (record.advancementFrame || "task").toLowerCase();
+        tile.classList.add(frameClass);
+        if (state.selectedRecord && state.selectedRecord.id === record.id) {
+          tile.classList.add("active");
+        }
+        
+        tile.dataset.title = record.advancementTitle || record.reason || "Advancement";
+        tile.dataset.description = record.advancementDescription || "";
+        tile.dataset.frame = record.advancementFrame || "task";
+        tile.dataset.status = "COMPLETED";
+        tile.dataset.dimension = record.dimension || "unknown";
+        tile.dataset.timestamp = formatTime(record.timestamp);
 
-      tile.setAttribute("aria-label", record.advancementTitle || record.reason);
-      tile.innerHTML = `
-        <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)}</div>
-      `;
-      tile.addEventListener("click", () => selectRecord(record.id));
-      grid.append(tile);
+        tile.setAttribute("aria-label", record.advancementTitle || record.reason);
+        tile.innerHTML = `
+          <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)}</div>
+        `;
+        tile.addEventListener("click", () => selectRecord(record.id));
+        grid.append(tile);
+      }
     }
-  }
 
-  recordList.innerHTML = "";
-  recordList.append(grid);
+    recordList.innerHTML = "";
+    recordList.append(grid);
+  } catch (error) {
+    console.error("Error rendering advancement grid:", error);
+    recordList.innerHTML = `<div class="status error">Error rendering achievements: ${error.message}</div>`;
+  }
 }
 
 function renderStats() {
