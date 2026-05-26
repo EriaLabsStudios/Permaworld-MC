@@ -384,6 +384,17 @@ body {
     transform: scale(1.05);
     z-index: 5;
 }
+.advancement-tile.locked {
+    filter: grayscale(1) opacity(0.45);
+    border-color: #2b3138;
+    background: linear-gradient(180deg, #3a3f45 0, #22262b 100%);
+    box-shadow: 3px 3px 0 #050505;
+}
+.advancement-tile.locked:hover {
+    filter: grayscale(0.2) opacity(0.85);
+    transform: scale(1.05);
+    z-index: 5;
+}
 
 /* Stat card main alignment */
 .stat-card-main {

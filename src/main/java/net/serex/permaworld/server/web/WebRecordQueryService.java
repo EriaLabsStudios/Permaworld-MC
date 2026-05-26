@@ -242,4 +242,25 @@ public final class WebRecordQueryService {
         }
         return String.format(java.util.Locale.ROOT, "%.0f m", meters);
     }
+
+    public JsonArray allAdvancements() {
+        JsonArray array = new JsonArray();
+        if (server == null) {
+            return array;
+        }
+        for (AdvancementHolder adv : server.getAdvancements().getAllAdvancements()) {
+            adv.value().display().ifPresent(display -> {
+                JsonObject dto = new JsonObject();
+                dto.addProperty("id", adv.id().toString());
+                dto.addProperty("title", display.getTitle().getString());
+                dto.addProperty("description", display.getDescription().getString());
+                dto.addProperty("frame", display.getType().getDisplayName().getString());
+                ItemStack icon = display.getIcon().create();
+                dto.addProperty("iconItemId", BuiltInRegistries.ITEM.getKey(icon.getItem()).toString());
+                dto.addProperty("iconLabel", icon.getHoverName().getString());
+                array.add(dto);
+            });
+        }
+        return array;
+    }
 }

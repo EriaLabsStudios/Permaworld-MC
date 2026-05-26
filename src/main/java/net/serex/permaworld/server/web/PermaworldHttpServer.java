@@ -80,6 +80,10 @@ public final class PermaworldHttpServer {
                 writeJson(exchange, queryService.sessionData());
                 return;
             }
+            if ("/api/advancements".equals(path)) {
+                writeJson(exchange, queryService.allAdvancements());
+                return;
+            }
             if ("/api/players".equals(path)) {
                 var payload = new com.google.gson.JsonObject();
                 payload.add("players", queryService.playerSummaries());

@@ -108,17 +108,25 @@ async function loadCurrentView() {
 async function loadRecords() {
   state.selectedRecord = null;
   state.stats = null;
+
+  if (state.filter === "ADVANCEMENT_DONE" && !state.allAdvancements) {
+    try {
+      state.allAdvancements = await loadJson("/api/advancements");
+    } catch (e) {
+      state.allAdvancements = [];
+    }
+  }
+
   const payload = await loadJson(`/api/players/${state.selectedPlayer.uuid}/records?filter=${encodeURIComponent(state.filter)}`);
   state.records = payload.records ?? [];
   renderRecords();
-  if (state.filter === "ADVANCEMENT_DONE" && state.records[0]) {
+  
+  if (state.filter === "ADVANCEMENT_DONE") {
     renderAdvancementPlaceholder();
   } else if (state.records[0]) {
     await selectRecord(state.records[0].id);
   } else {
-    recordDetail.innerHTML = state.filter === "ADVANCEMENT_DONE"
-      ? '<div class="empty">No advancements recorded yet.</div>'
-      : '<div class="empty">No records for this filter.</div>';
+    recordDetail.innerHTML = '<div class="empty">No records for this filter.</div>';
   }
 }
 
@@ -169,7 +177,9 @@ function renderRecords() {
 }
 
 function renderAdvancementGrid() {
-  if (!state.records.length) {
+  const hasAllAdv = state.allAdvancements && state.allAdvancements.length > 0;
+  
+  if (!hasAllAdv && !state.records.length) {
     recordList.innerHTML = '<div class="empty">No advancements recorded yet.</div>';
     return;
   }
@@ -177,31 +187,78 @@ function renderAdvancementGrid() {
   const grid = document.createElement("div");
   grid.className = "advancement-grid";
 
-  for (const record of state.records) {
-    const tile = document.createElement("button");
-    tile.type = "button";
-    tile.className = "advancement-tile";
-    const frameClass = (record.advancementFrame || "task").toLowerCase();
-    tile.classList.add(frameClass);
-    if (state.selectedRecord && state.selectedRecord.id === record.id) {
-      tile.classList.add("active");
-    }
-    
-    // Add custom metadata for the tooltip engine
-    tile.dataset.title = record.advancementTitle || record.reason || "Advancement";
-    tile.dataset.description = record.advancementDescription || "";
-    tile.dataset.frame = record.advancementFrame || "task";
-    tile.dataset.dimension = record.dimension || "unknown";
-    tile.dataset.timestamp = formatTime(record.timestamp);
+  if (hasAllAdv) {
+    for (const adv of state.allAdvancements) {
+      const completedRecord = state.records.find((r) => r.advancementId === adv.id);
+      const isCompleted = !!completedRecord;
 
-    tile.setAttribute("aria-label", record.advancementTitle || record.reason);
-    tile.innerHTML = `
-      <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)}</div>
-    `;
-    tile.addEventListener("click", () => selectRecord(record.id));
-    grid.append(tile);
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "advancement-tile";
+      
+      const frameClass = (adv.frame || "task").toLowerCase();
+      tile.classList.add(frameClass);
+      if (!isCompleted) {
+        tile.classList.add("locked");
+      }
+      
+      const isSelected = state.selectedRecord && 
+        (isCompleted ? state.selectedRecord.id === completedRecord.id : state.selectedRecord.advancementId === adv.id);
+      if (isSelected) {
+        tile.classList.add("active");
+      }
+
+      // Add custom metadata for the tooltip engine
+      tile.dataset.title = adv.title || "Advancement";
+      tile.dataset.description = adv.description || "";
+      tile.dataset.frame = adv.frame || "task";
+      tile.dataset.status = isCompleted ? "COMPLETED" : "LOCKED";
+      if (isCompleted) {
+        tile.dataset.dimension = completedRecord.dimension || "unknown";
+        tile.dataset.timestamp = formatTime(completedRecord.timestamp);
+      }
+
+      tile.setAttribute("aria-label", adv.title || "Advancement");
+      tile.innerHTML = `
+        <div class="slot-icon large">${renderItemIcon(adv.iconItemId, adv.iconLabel || adv.title)}</div>
+      `;
+      
+      if (isCompleted) {
+        tile.addEventListener("click", () => selectRecord(completedRecord.id));
+      } else {
+        tile.addEventListener("click", () => selectLockedAdvancement(adv));
+      }
+      grid.append(tile);
+    }
+  } else {
+    // Fallback: render only completed ones from records
+    for (const record of state.records) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "advancement-tile";
+      const frameClass = (record.advancementFrame || "task").toLowerCase();
+      tile.classList.add(frameClass);
+      if (state.selectedRecord && state.selectedRecord.id === record.id) {
+        tile.classList.add("active");
+      }
+      
+      tile.dataset.title = record.advancementTitle || record.reason || "Advancement";
+      tile.dataset.description = record.advancementDescription || "";
+      tile.dataset.frame = record.advancementFrame || "task";
+      tile.dataset.status = "COMPLETED";
+      tile.dataset.dimension = record.dimension || "unknown";
+      tile.dataset.timestamp = formatTime(record.timestamp);
+
+      tile.setAttribute("aria-label", record.advancementTitle || record.reason);
+      tile.innerHTML = `
+        <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)}</div>
+      `;
+      tile.addEventListener("click", () => selectRecord(record.id));
+      grid.append(tile);
+    }
   }
 
+  recordList.innerHTML = "";
   recordList.append(grid);
 }
 
@@ -307,28 +364,53 @@ function renderDetail() {
 }
 
 function renderAdvancementDetail(record) {
+  const isLocked = !!record.locked;
+  const statusPill = isLocked 
+    ? '<span class="reason-pill" style="background: rgba(183, 74, 74, 0.4); border-color: #b74a4a; color: #ff8888;">LOCKED</span>' 
+    : `<span class="reason-pill">${record.advancementFrame || "Advancement"}</span>`;
+  
+  const titleStyle = isLocked 
+    ? 'font-weight: normal; color: #888888;' 
+    : 'font-weight: bold; color: var(--gold-1); text-shadow: 1px 1px 0px #000;';
+
   recordDetail.innerHTML = `
     <div class="detail-head">
-      <h3>${record.advancementTitle}</h3>
-      <span class="reason-pill">${record.advancementFrame || "Advancement"}</span>
+      <h3 style="${titleStyle}">${record.advancementTitle}</h3>
+      ${statusPill}
     </div>
-    <div class="record-main">
+    <div class="record-main" style="${isLocked ? 'filter: grayscale(1) opacity(0.5);' : ''}">
       <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle)}</div>
       <div>
-        <div class="advancement-description">${record.advancementDescription || "No description available."}</div>
+        <div class="advancement-description" style="${isLocked ? 'color: #888888;' : ''}">${record.advancementDescription || "No description available."}</div>
+        ${!isLocked ? `
         <div class="advancement-meta">
           <span class="reason-pill">${formatTime(record.timestamp)}</span>
           <span class="reason-pill">${record.dimension || "unknown"}</span>
         </div>
+        ` : ""}
       </div>
     </div>
     <dl class="detail-grid">
-      <dt>Player</dt><dd>${record.playerName}</dd>
+      <dt>Player</dt><dd>${state.selectedPlayer ? state.selectedPlayer.playerName : "unknown"}</dd>
       <dt>Advancement</dt><dd>${record.advancementId || "unknown"}</dd>
-      <dt>Criterion</dt><dd>${record.criterion || "completed"}</dd>
+      ${!isLocked ? `<dt>Criterion</dt><dd>${record.criterion || "completed"}</dd>` : ""}
       <dt>Icon Item</dt><dd>${record.advancementIconItemId || "unknown"}</dd>
     </dl>
   `;
+}
+
+function selectLockedAdvancement(adv) {
+  state.selectedRecord = {
+    advancementId: adv.id,
+    advancementTitle: adv.title,
+    advancementDescription: adv.description,
+    advancementFrame: adv.frame,
+    advancementIconItemId: adv.iconItemId,
+    advancementIconLabel: adv.iconLabel,
+    locked: true
+  };
+  renderRecords();
+  renderDetail();
 }
 
 function renderAdvancementPlaceholder() {
@@ -537,21 +619,25 @@ function initTooltip() {
         const frame = advancementTile.dataset.frame || "task";
         const dimension = advancementTile.dataset.dimension;
         const timestamp = advancementTile.dataset.timestamp;
+        const status = advancementTile.dataset.status || "COMPLETED";
+        const isCompleted = status === "COMPLETED";
 
         let titleColor = "#ffffff";
         if (frame === "challenge") titleColor = "#d334b9";
         else if (frame === "goal") titleColor = "#f3e46b";
 
-        content = `<div class="tooltip-title" style="color: ${titleColor}; font-weight: bold;">${title}</div>`;
-        content += `<div class="tooltip-sub" style="color: #ff55ff; font-size: 11px; text-transform: uppercase;">[${frame}]</div>`;
+        content = `<div class="tooltip-title" style="color: ${isCompleted ? titleColor : '#888888'}; font-weight: bold; ${!isCompleted ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${title}</div>`;
+        content += `<div class="tooltip-sub" style="color: #ff55ff; font-size: 11px; text-transform: uppercase;">[${frame}] - <span style="color: ${isCompleted ? '#55ff55' : '#ff5555'}">${status}</span></div>`;
         if (desc) {
-          content += `<div style="color: #aaccff; margin-top: 6px; font-style: italic;">"${desc}"</div>`;
+          content += `<div style="color: ${isCompleted ? '#aaccff' : '#666666'}; margin-top: 6px; font-style: italic;">"${desc}"</div>`;
         }
-        if (dimension) {
-          content += `<div style="color: #aaaaaa; margin-top: 6px;">Dimension: <span style="color: #55ff55;">${dimension}</span></div>`;
-        }
-        if (timestamp) {
-          content += `<div style="color: #aaaaaa;">Earned: <span style="color: #55ffff;">${timestamp}</span></div>`;
+        if (isCompleted) {
+          if (dimension) {
+            content += `<div style="color: #aaaaaa; margin-top: 6px;">Dimension: <span style="color: #55ff55;">${dimension}</span></div>`;
+          }
+          if (timestamp) {
+            content += `<div style="color: #aaaaaa;">Earned: <span style="color: #55ffff;">${timestamp}</span></div>`;
+          }
         }
       }
     } else if (statCard) {
