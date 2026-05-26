@@ -101,10 +101,60 @@ public final class WebRecordQueryService {
 
     public JsonObject playerStats(UUID playerId) {
         JsonObject payload = new JsonObject();
+        
+        // Extract history metadata from JSONL records
+        try {
+            List<JsonObject> records = store.readPlayerRecords(playerId);
+            if (!records.isEmpty()) {
+                JsonObject oldest = records.stream()
+                        .min(Comparator.comparing(r -> r.get("timestamp").getAsString()))
+                        .orElse(records.get(0));
+                payload.addProperty("firstJoined", oldest.get("timestamp").getAsString());
+
+                JsonObject newest = records.stream()
+                        .max(Comparator.comparing(r -> r.get("timestamp").getAsString()))
+                        .orElse(records.get(records.size() - 1));
+                payload.addProperty("lastConnected", newest.get("timestamp").getAsString());
+
+                if (newest.has("position") && newest.get("position").isJsonObject()) {
+                    JsonObject posObj = newest.getAsJsonObject("position");
+                    double x = posObj.has("x") ? posObj.get("x").getAsDouble() : 0.0;
+                    double y = posObj.has("y") ? posObj.get("y").getAsDouble() : 0.0;
+                    double z = posObj.has("z") ? posObj.get("z").getAsDouble() : 0.0;
+                    String dim = newest.has("dimension") ? newest.get("dimension").getAsString() : "unknown";
+                    payload.addProperty("lastKnownPosition", String.format(java.util.Locale.ROOT, "%.1f, %.1f, %.1f (%s)", x, y, z, dim));
+                } else if (newest.has("dimension")) {
+                    payload.addProperty("lastKnownPosition", newest.get("dimension").getAsString());
+                } else {
+                    payload.addProperty("lastKnownPosition", "unknown");
+                }
+            } else {
+                payload.addProperty("firstJoined", "unknown");
+                payload.addProperty("lastConnected", "unknown");
+                payload.addProperty("lastKnownPosition", "unknown");
+            }
+        } catch (Exception e) {
+            payload.addProperty("firstJoined", "unknown");
+            payload.addProperty("lastConnected", "unknown");
+            payload.addProperty("lastKnownPosition", "unknown");
+        }
+
         ServerPlayer player = server == null ? null : server.getPlayerList().getPlayer(playerId);
         if (player == null) {
             payload.addProperty("available", false);
             payload.addProperty("message", "Statistics are available when the player is online.");
+            
+            // Try to resolve name historically from records
+            String offlineName = playerId.toString();
+            try {
+                List<JsonObject> records = store.readPlayerRecords(playerId);
+                offlineName = records.stream()
+                        .filter(r -> r.has("playerName"))
+                        .map(r -> r.get("playerName").getAsString())
+                        .findFirst()
+                        .orElse(playerId.toString());
+            } catch (Exception ignored) {}
+            payload.addProperty("playerName", offlineName);
             return payload;
         }
 
@@ -165,7 +215,7 @@ public final class WebRecordQueryService {
         ItemStack icon = display.getIcon().create();
         dto.addProperty("advancementTitle", display.getTitle().getString());
         dto.addProperty("advancementDescription", display.getDescription().getString());
-        dto.addProperty("advancementFrame", display.getType().getDisplayName().getString());
+        dto.addProperty("advancementFrame", display.getType().name());
         dto.addProperty("advancementIconItemId", BuiltInRegistries.ITEM.getKey(icon.getItem()).toString());
         dto.addProperty("advancementIconLabel", icon.getHoverName().getString());
         dto.addProperty("summary", display.getTitle().getString());
@@ -254,7 +304,7 @@ public final class WebRecordQueryService {
                 dto.addProperty("id", adv.id().toString());
                 dto.addProperty("title", display.getTitle().getString());
                 dto.addProperty("description", display.getDescription().getString());
-                dto.addProperty("frame", display.getType().getDisplayName().getString());
+                dto.addProperty("frame", display.getType().name());
                 ItemStack icon = display.getIcon().create();
                 dto.addProperty("iconItemId", BuiltInRegistries.ITEM.getKey(icon.getItem()).toString());
                 dto.addProperty("iconLabel", icon.getHoverName().getString());

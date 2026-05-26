@@ -84,9 +84,11 @@ function renderPlayers() {
       card.classList.add("active");
     }
     card.innerHTML = `
-      <h3>${player.playerName}</h3>
-      <div class="record-meta">${player.recordCount} logs</div>
-      <div class="record-note">${player.lastReason} · ${formatTime(player.lastTimestamp)}</div>
+      <img class="player-head" src="https://crafatar.com/avatars/${player.uuid}?size=32&default=MHF_Steve" alt="${player.playerName}">
+      <div class="player-info-wrapper">
+        <h3>${player.playerName}</h3>
+        <div class="record-meta">${player.recordCount} logs · ${player.lastReason}</div>
+      </div>
     `;
     card.addEventListener("click", async () => {
       state.selectedPlayer = player;
@@ -205,7 +207,15 @@ function renderAdvancementGrid() {
         tile.type = "button";
         tile.className = "advancement-tile";
         
-        const frameClass = (adv.frame || "task").toLowerCase();
+        let frameClass = (adv.frame || "task").toLowerCase();
+        if (frameClass.includes("challenge")) {
+          frameClass = "challenge";
+        } else if (frameClass.includes("goal")) {
+          frameClass = "goal";
+        } else {
+          frameClass = "task";
+        }
+        
         tile.classList.add(frameClass);
         if (!isCompleted) {
           tile.classList.add("locked");
@@ -249,7 +259,16 @@ function renderAdvancementGrid() {
         const tile = document.createElement("button");
         tile.type = "button";
         tile.className = "advancement-tile";
-        const frameClass = (record.advancementFrame || "task").toLowerCase();
+        
+        let frameClass = (record.advancementFrame || "task").toLowerCase();
+        if (frameClass.includes("challenge")) {
+          frameClass = "challenge";
+        } else if (frameClass.includes("goal")) {
+          frameClass = "goal";
+        } else {
+          frameClass = "task";
+        }
+        
         tile.classList.add(frameClass);
         if (state.selectedRecord && state.selectedRecord.id === record.id) {
           tile.classList.add("active");
@@ -435,26 +454,35 @@ function renderAdvancementPlaceholder() {
 }
 
 function renderStatsDetail() {
-  if (!state.stats?.available) {
-    recordDetail.innerHTML = `<div class="status error">${state.stats?.message || "Statistics unavailable."}</div>`;
-    return;
-  }
-  const highlights = (state.stats.highlights ?? []).map((stat) => {
+  const hasStats = !!state.stats?.available;
+  const firstJoined = state.stats?.firstJoined ? formatTime(state.stats.firstJoined) : "unknown";
+  const lastConnected = state.stats?.lastConnected ? formatTime(state.stats.lastConnected) : "unknown";
+  const lastPos = state.stats?.lastKnownPosition || "unknown";
+  const playerName = state.stats?.playerName || (state.selectedPlayer ? state.selectedPlayer.playerName : "Player");
+
+  const highlights = hasStats ? (state.stats.highlights ?? []).map((stat) => {
     const icon = getStatIcon(stat.key);
     return `
       <div class="item-row" data-stat-key="${stat.key}" data-label="${escapeHtml(stat.label)}" data-value="${escapeHtml(stat.formatted)}">
         <div class="slot-icon">${renderItemIcon(icon, stat.label)}</div>
-        <div>${stat.label}</div>
+        <div style="font-weight: bold; color: #ffffff;">${stat.label}</div>
         <div>${stat.formatted}</div>
       </div>
     `;
-  }).join("");
+  }).join("") : `<div class="status error">${state.stats?.message || "Statistics unavailable."}</div>`;
 
   recordDetail.innerHTML = `
     <div class="detail-head">
-      <h3>Statistics</h3>
-      <span class="reason-pill">${state.stats.playerName}</span>
+      <h3>Player Summary</h3>
+      <span class="reason-pill">${playerName}</span>
     </div>
+    <div style="margin: 14px 0; border: 3px solid #050505; background: rgba(0, 0, 0, 0.24); padding: 12px; box-shadow: 3px 3px 0 #0a0a0a;">
+      <div style="font-weight: bold; color: var(--gold-1); margin-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 4px;">General Info</div>
+      <div style="font-size: 13px; margin-bottom: 6px; color: var(--muted); text-align: left;">First Joined: <span style="color: #ffffff; font-weight: bold;">${firstJoined}</span></div>
+      <div style="font-size: 13px; margin-bottom: 6px; color: var(--muted); text-align: left;">Last Connected: <span style="color: #ffffff; font-weight: bold;">${lastConnected}</span></div>
+      <div style="font-size: 13px; color: var(--muted); text-align: left;">Last Position: <span style="color: #ffffff; font-weight: bold;">${lastPos}</span></div>
+    </div>
+    <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; color: var(--muted); text-align: left;">Activity Metrics</div>
     <div class="item-list">${highlights}</div>
   `;
 }
