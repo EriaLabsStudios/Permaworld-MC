@@ -23,7 +23,22 @@ public final class TradeIdentity {
         return hash(descriptor(offer));
     }
 
+    public static int legacyHash(MerchantOffer offer) {
+        return hash(legacyDescriptor(offer));
+    }
+
     public static TradeDescriptor descriptor(MerchantOffer offer) {
+        return new TradeDescriptor(
+                itemId(offer.getBaseCostA()),
+                count(offer.getBaseCostA()),
+                itemId(offer.getCostB()),
+                count(offer.getCostB()),
+                itemId(offer.getResult()),
+                count(offer.getResult())
+        );
+    }
+
+    private static TradeDescriptor legacyDescriptor(MerchantOffer offer) {
         return new TradeDescriptor(
                 itemId(offer.getCostA()),
                 count(offer.getCostA()),

@@ -1,19 +1,18 @@
 package net.serex.permaworld.mixin.client;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.config.PermaworldConfig;
 import net.serex.permaworld.client.feature.trader.MarkedTradeBuyer;
 import net.serex.permaworld.client.feature.trader.TradeFavoriteStore;
-import net.serex.permaworld.client.feature.trader.TradeIdentity;
 import net.serex.permaworld.client.feature.trader.TradeMark;
 import net.serex.permaworld.client.feature.trader.TraderFeedback;
 import net.serex.permaworld.client.feature.trader.TraderVillagerTracker;
@@ -25,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreen.class)
-public abstract class MerchantScreenMixin {
+public abstract class MerchantScreenMixin extends AbstractContainerScreen<MerchantMenu> {
 
     private static final int VISIBLE_TRADE_ROWS = 7;
     private static final int TRADE_ROW_X = 5;
@@ -41,35 +40,47 @@ public abstract class MerchantScreenMixin {
     private static final int GLOBAL_STAR_COLOR = 0xFF56A8FF;
 
     @Shadow
-    protected int leftPos;
-
-    @Shadow
-    protected int topPos;
-
-    @Shadow
-    protected int imageWidth;
-
-    @Shadow
     private int scrollOff;
 
-    @Shadow
-    protected Font font;
-
-    @Inject(method = "init", at = @At("TAIL"))
-    private void permaworld$trader$addBuyMarkedButton(CallbackInfo ci) {
-        if (!ConfigManager.get().config().trader.enabled) {
-            return;
-        }
-        MerchantScreen self = (MerchantScreen) (Object) this;
-        Button button = Button.builder(Component.translatable("permaworld.trader.buy_marked"),
-                        ignored -> MarkedTradeBuyer.buyMarked(self))
-                .bounds(leftPos + imageWidth - 102, topPos + 4, 96, 20)
-                .tooltip(Tooltip.create(Component.translatable("permaworld.trader.buy_marked")))
-                .build();
-        ((ScreenAccessor) this).permaworld$addRenderableWidget(button);
+    protected MerchantScreenMixin(MerchantMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
     }
 
-    @Inject(method = "extractBackground", at = @At("TAIL"))
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        MarkedTradeBuyer.tick((MerchantScreen) (Object) this);
+    }
+
+    @Inject(method = "extractContents", at = @At("TAIL"))
+    private void permaworld$trader$renderBuyMarkedButtons(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta, CallbackInfo ci) {
+        if (!ConfigManager.get().config().trader.enabled || !ConfigManager.get().config().trader.markedBuyButtons) {
+            return;
+        }
+        permaworld$trader$renderBuyMarkedButton(extractor, mouseX, mouseY, TradeMark.GLOBAL,
+                Component.literal("G"), 0xFF1269F3, Component.translatable("permaworld.trader.buy_global_marked"));
+        permaworld$trader$renderBuyMarkedButton(extractor, mouseX, mouseY, TradeMark.LOCAL,
+                Component.literal("L"), 0xFFFFC400, Component.translatable("permaworld.trader.buy_local_marked"));
+    }
+
+    private void permaworld$trader$renderBuyMarkedButton(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
+                                                         TradeMark mark, Component label, int color, Component tooltip) {
+        int x = permaworld$trader$buyMarkedButtonX(mark);
+        int y = permaworld$trader$buyMarkedButtonY();
+        int size = permaworld$trader$buyButtonSize();
+        boolean hovered = inside(mouseX, mouseY, x, y, size, size);
+        int border = hovered ? 0xFFFFFFFF : 0xFF202020;
+        extractor.fill(x, y, x + size, y + size, color);
+        extractor.outline(x, y, size, size, border);
+        int labelX = x + Math.max(1, (size - font.width(label)) / 2);
+        int labelY = y + Math.max(1, (size - 8) / 2);
+        extractor.text(font, label, labelX, labelY, 0xFF111111, true);
+        if (hovered) {
+            extractor.setTooltipForNextFrame(tooltip, mouseX, mouseY);
+        }
+    }
+
+    @Inject(method = "extractContents", at = @At("TAIL"))
     private void permaworld$trader$renderRowTints(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta, CallbackInfo ci) {
         if (!ConfigManager.get().config().trader.enabled) {
             return;
@@ -85,7 +96,7 @@ public abstract class MerchantScreenMixin {
                 continue;
             }
             MerchantOffer offer = offers.get(offerIndex);
-            TradeMark mark = store.activeMark(villagerKey, TradeIdentity.hash(offer));
+            TradeMark mark = store.activeMark(villagerKey, offer);
             if (mark == TradeMark.NONE) {
                 continue;
             }
@@ -128,6 +139,10 @@ public abstract class MerchantScreenMixin {
         if (!ConfigManager.get().config().trader.enabled || event.button() != 0) {
             return;
         }
+        if (permaworld$trader$handleBuyMarkedButtonClick((int) event.x(), (int) event.y())) {
+            cir.setReturnValue(true);
+            return;
+        }
         int row = hoveredRow((int) event.x(), (int) event.y());
         if (row < 0) {
             return;
@@ -147,23 +162,67 @@ public abstract class MerchantScreenMixin {
         }
 
         MerchantOffer offer = offers.get(offerIndex);
-        int hash = TradeIdentity.hash(offer);
         String villagerKey = TraderVillagerTracker.currentVillagerKey();
         TradeFavoriteStore store = new TradeFavoriteStore(ConfigManager.get().config().trader);
         if (local) {
             if (villagerKey == null || villagerKey.isBlank()) {
                 TraderFeedback.show(Component.translatable("permaworld.trader.local_unavailable"));
             } else {
-                store.toggleLocal(villagerKey, hash);
+                store.toggleLocal(villagerKey, offer);
                 ConfigManager.get().save();
                 TraderFeedback.click();
             }
         } else {
-            store.toggleGlobal(villagerKey, hash);
+            store.toggleGlobal(villagerKey, offer);
             ConfigManager.get().save();
             TraderFeedback.click();
         }
         cir.setReturnValue(true);
+    }
+
+    private boolean permaworld$trader$handleBuyMarkedButtonClick(int mouseX, int mouseY) {
+        if (!ConfigManager.get().config().trader.markedBuyButtons) {
+            return false;
+        }
+        TradeMark mark = permaworld$trader$buyMarkedButtonAt(mouseX, mouseY);
+        if (mark == TradeMark.NONE) {
+            return false;
+        }
+        MarkedTradeBuyer.buyMarked((MerchantScreen) (Object) this, mark);
+        return true;
+    }
+
+    private TradeMark permaworld$trader$buyMarkedButtonAt(int mouseX, int mouseY) {
+        int y = permaworld$trader$buyMarkedButtonY();
+        int size = permaworld$trader$buyButtonSize();
+        if (inside(mouseX, mouseY, permaworld$trader$buyMarkedButtonX(TradeMark.GLOBAL), y, size, size)) {
+            return TradeMark.GLOBAL;
+        }
+        if (inside(mouseX, mouseY, permaworld$trader$buyMarkedButtonX(TradeMark.LOCAL), y, size, size)) {
+            return TradeMark.LOCAL;
+        }
+        return TradeMark.NONE;
+    }
+
+    private int permaworld$trader$buyMarkedButtonX(TradeMark mark) {
+        PermaworldConfig.TraderConfig trader = ConfigManager.get().config().trader;
+        int globalX = leftPos + imageWidth + trader.markedBuyButtonOffsetX;
+        if (mark == TradeMark.GLOBAL) {
+            return globalX;
+        }
+        return globalX + permaworld$trader$buyButtonSize() + permaworld$trader$buyButtonGap();
+    }
+
+    private int permaworld$trader$buyMarkedButtonY() {
+        return topPos + ConfigManager.get().config().trader.markedBuyButtonOffsetY;
+    }
+
+    private int permaworld$trader$buyButtonSize() {
+        return clamp(ConfigManager.get().config().trader.markedBuyButtonSize, 8, 24);
+    }
+
+    private int permaworld$trader$buyButtonGap() {
+        return clamp(ConfigManager.get().config().trader.markedBuyButtonGap, 0, 24);
     }
 
     private int hoveredRow(int mouseX, int mouseY) {
@@ -181,5 +240,9 @@ public abstract class MerchantScreenMixin {
 
     private static boolean inside(int mouseX, int mouseY, int x, int y, int width, int height) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

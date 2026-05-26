@@ -83,7 +83,17 @@ public class PermaworldConfig {
     }
 
     public static class TraderConfig {
+        public static final int DEFAULT_MARKED_BUY_BUTTON_SIZE = 14;
+        public static final int DEFAULT_MARKED_BUY_BUTTON_GAP = 4;
+        public static final int DEFAULT_MARKED_BUY_BUTTON_OFFSET_X = -206;
+        public static final int DEFAULT_MARKED_BUY_BUTTON_OFFSET_Y = -15;
+
         public boolean enabled = true;
+        public boolean markedBuyButtons = true;
+        public int markedBuyButtonSize = DEFAULT_MARKED_BUY_BUTTON_SIZE;
+        public int markedBuyButtonGap = DEFAULT_MARKED_BUY_BUTTON_GAP;
+        public int markedBuyButtonOffsetX = DEFAULT_MARKED_BUY_BUTTON_OFFSET_X;
+        public int markedBuyButtonOffsetY = DEFAULT_MARKED_BUY_BUTTON_OFFSET_Y;
         /** Trades guardados globalmente: aplican a cualquier aldeano con la misma oferta. */
         public Set<Integer> globalFavoriteTradeHashes = new HashSet<>();
         /** Trades guardados por aldeano: villagerKey -> hashes de ofertas locales. */
@@ -95,6 +105,13 @@ public class PermaworldConfig {
          */
         @Deprecated
         public Set<Integer> favoriteTradeHashes = new HashSet<>();
+
+        public void resetButtonLayout() {
+            markedBuyButtonSize = DEFAULT_MARKED_BUY_BUTTON_SIZE;
+            markedBuyButtonGap = DEFAULT_MARKED_BUY_BUTTON_GAP;
+            markedBuyButtonOffsetX = DEFAULT_MARKED_BUY_BUTTON_OFFSET_X;
+            markedBuyButtonOffsetY = DEFAULT_MARKED_BUY_BUTTON_OFFSET_Y;
+        }
     }
 
     public static class HarvestConfig {
