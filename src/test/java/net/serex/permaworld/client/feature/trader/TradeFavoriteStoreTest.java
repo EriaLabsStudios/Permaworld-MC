@@ -67,4 +67,31 @@ class TradeFavoriteStoreTest {
         assertEquals(TradeMark.GLOBAL, store.activeMark("villager-a", 42));
         assertFalse(config.localFavoriteTradeHashes.containsKey("villager-a"));
     }
+
+    @Test
+    void canCheckMarkedTradesByExactMarkType() {
+        PermaworldConfig.TraderConfig config = new PermaworldConfig.TraderConfig();
+        TradeFavoriteStore store = new TradeFavoriteStore(config);
+
+        store.toggleLocal("villager-a", 42);
+        store.toggleGlobal("villager-a", 84);
+
+        assertTrue(store.isMarkedAs("villager-a", 42, TradeMark.LOCAL));
+        assertFalse(store.isMarkedAs("villager-a", 42, TradeMark.GLOBAL));
+        assertTrue(store.isMarkedAs("villager-a", 84, TradeMark.GLOBAL));
+        assertFalse(store.isMarkedAs("villager-a", 84, TradeMark.LOCAL));
+    }
+
+    @Test
+    void activeMarkAcceptsLegacyDynamicTradeHash() {
+        PermaworldConfig.TraderConfig config = new PermaworldConfig.TraderConfig();
+        config.globalFavoriteTradeHashes.add(99);
+        config.localFavoriteTradeHashes.put("villager-a", new java.util.HashSet<>(java.util.Set.of(199)));
+        TradeFavoriteStore store = new TradeFavoriteStore(config);
+
+        assertEquals(TradeMark.GLOBAL, store.activeMark("villager-a", 42, 99));
+        assertEquals(TradeMark.LOCAL, store.activeMark("villager-a", 142, 199));
+        assertTrue(store.isMarkedAs("villager-a", 42, 99, TradeMark.GLOBAL));
+        assertTrue(store.isMarkedAs("villager-a", 142, 199, TradeMark.LOCAL));
+    }
 }

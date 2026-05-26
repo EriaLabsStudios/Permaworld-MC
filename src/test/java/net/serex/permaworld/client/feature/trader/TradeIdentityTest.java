@@ -2,8 +2,14 @@ package net.serex.permaworld.client.feature.trader;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TradeIdentityTest {
 
@@ -53,5 +59,20 @@ class TradeIdentityTest {
         );
 
         assertNotEquals(TradeIdentity.hash(pickaxe), TradeIdentity.hash(axe));
+    }
+
+    @Test
+    void merchantOfferHashUsesStableBaseFirstCost() throws IOException {
+        String source = Files.readString(Path.of(
+                "src/client/java/net/serex/permaworld/client/feature/trader/TradeIdentity.java"
+        ));
+        String descriptorSource = source.substring(
+                source.indexOf("public static TradeDescriptor descriptor"),
+                source.indexOf("private static TradeDescriptor legacyDescriptor")
+        );
+
+        assertTrue(descriptorSource.contains("offer.getBaseCostA()"));
+        assertFalse(descriptorSource.contains("itemId(offer.getCostA())"));
+        assertFalse(descriptorSource.contains("count(offer.getCostA())"));
     }
 }

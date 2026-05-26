@@ -22,7 +22,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.nio.file.Path;
@@ -195,23 +194,21 @@ public abstract class PackSelectionScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void permaworld$mouseClickedHead(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (permaworld$handleTrashClick(event)) {
-            cir.setReturnValue(true);
-            return;
+            return true;
         }
         if (permaworld$preparePackDrag(event)) {
             permaworld$playPickupSound();
-            cir.setReturnValue(true);
+            return true;
         }
-    }
 
-    @Inject(method = "mouseClicked", at = @At("RETURN"))
-    private void permaworld$mouseClickedReturn(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValue() && permaworld$isInPackLists(event.x(), event.y())) {
+        boolean handled = super.mouseClicked(event, doubleClick);
+        if (handled && permaworld$isInPackLists(event.x(), event.y())) {
             permaworld$markCustomProfile();
         }
+        return handled;
     }
 
     @Override
