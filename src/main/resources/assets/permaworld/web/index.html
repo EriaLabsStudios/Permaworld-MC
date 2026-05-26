@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Permaworld Logbook</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+    <header class="topbar">
+        <div>
+            <h1>Permaworld Logbook</h1>
+            <p>Minecraft admin recovery console</p>
+        </div>
+        <div class="topbar-actions">
+            <label class="admin-pick">
+                <span>Admin</span>
+                <select id="adminSelect"></select>
+            </label>
+        </div>
+    </header>
+    <main class="layout">
+        <aside class="rail panel">
+            <div class="panel-title">Players</div>
+            <input id="playerSearch" class="mc-input" type="search" placeholder="Search player">
+            <div id="playerList" class="player-list"></div>
+        </aside>
+        <section class="timeline panel">
+            <div class="toolbar">
+                <div id="filterBar" class="filter-bar">
+                    <button data-filter="DEATH" class="mc-button is-active">Deaths</button>
+                    <button data-filter="ALL" class="mc-button">All</button>
+                    <button data-filter="PATH_SAMPLE" class="mc-button">Path</button>
+                    <button data-filter="GAME_MODE_CHANGE" class="mc-button">Game Mode</button>
+                    <button data-filter="DIMENSION_CHANGE" class="mc-button">Dimension</button>
+                    <button data-filter="ADVANCEMENT_DONE" class="mc-button">Advancements</button>
+                    <button data-filter="STATS" class="mc-button">Statistics</button>
+                </div>
+            </div>
+            <div id="recordList" class="record-list"></div>
+        </section>
+        <aside class="detail panel">
+            <div class="panel-title">Record</div>
+            <div id="recordDetail" class="record-detail">Select a record.</div>
+        </aside>
+    </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

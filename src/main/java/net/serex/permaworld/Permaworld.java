@@ -1,6 +1,8 @@
 package net.serex.permaworld;
 
 import net.fabricmc.api.ModInitializer;
+import net.serex.permaworld.server.record.ServerRecordFeature;
+import net.serex.permaworld.server.web.PermaworldWebFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,5 +13,7 @@ public class Permaworld implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        new ServerRecordFeature().register();
+        new PermaworldWebFeature().register();
     }
 }
