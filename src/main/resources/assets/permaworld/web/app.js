@@ -41,6 +41,7 @@ async function boot() {
   } else {
     recordList.innerHTML = '<div class="empty">No players with records yet.</div>';
   }
+  initTooltip();
 }
 
 function bindEvents() {
@@ -180,10 +181,19 @@ function renderAdvancementGrid() {
     const tile = document.createElement("button");
     tile.type = "button";
     tile.className = "advancement-tile";
+    const frameClass = (record.advancementFrame || "task").toLowerCase();
+    tile.classList.add(frameClass);
     if (state.selectedRecord && state.selectedRecord.id === record.id) {
       tile.classList.add("active");
     }
-    tile.setAttribute("title", record.advancementTitle || record.reason);
+    
+    // Add custom metadata for the tooltip engine
+    tile.dataset.title = record.advancementTitle || record.reason || "Advancement";
+    tile.dataset.description = record.advancementDescription || "";
+    tile.dataset.frame = record.advancementFrame || "task";
+    tile.dataset.dimension = record.dimension || "unknown";
+    tile.dataset.timestamp = formatTime(record.timestamp);
+
     tile.setAttribute("aria-label", record.advancementTitle || record.reason);
     tile.innerHTML = `
       <div class="slot-icon large">${renderItemIcon(record.advancementIconItemId, record.advancementIconLabel || record.advancementTitle || record.reason)}</div>
@@ -202,12 +212,20 @@ function renderStats() {
     recordList.innerHTML = `<div class="status error">${state.stats?.message || "Statistics unavailable."}</div>`;
     return;
   }
-  const highlights = (state.stats.highlights ?? []).map((stat) => `
-    <div class="stat-card">
-      <div class="record-meta">${stat.label}</div>
-      <div class="stat-value">${stat.formatted}</div>
-    </div>
-  `).join("");
+  const highlights = (state.stats.highlights ?? []).map((stat) => {
+    const icon = getStatIcon(stat.key);
+    return `
+      <div class="stat-card" data-stat-key="${stat.key}" data-label="${escapeHtml(stat.label)}" data-value="${escapeHtml(stat.formatted)}">
+        <div class="stat-card-main">
+          ${icon ? `<div class="slot-icon">${renderItemIcon(icon, stat.label)}</div>` : ""}
+          <div>
+            <div class="record-meta">${stat.label}</div>
+            <div class="stat-value">${stat.formatted}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
 
   recordList.innerHTML = `
     <div class="stat-grid">${highlights}</div>
@@ -255,10 +273,13 @@ function renderDetail() {
     return;
   }
 
-  const items = (record.items ?? []).slice(0, 8).map((item) => `
-    <div class="item-row">
-      <div class="slot-icon"></div>
-      <div>${item.itemId}<div class="record-note">${item.section}/${item.slot}${item.customName ? ` · ${item.customName}` : ""}</div></div>
+  const items = (record.items ?? []).slice(0, 36).map((item) => `
+    <div class="item-row" data-item-id="${item.itemId}" data-count="${item.count}" data-section="${item.section}" data-slot="${item.slot}" data-custom-name="${escapeHtml(item.customName || '')}">
+      <div class="slot-icon">${renderItemIcon(item.itemId, item.customName || item.itemId)}</div>
+      <div>
+        <div style="font-weight: bold; color: #ffffff;">${formatItemName(item.itemId)}</div>
+        <div class="record-note">${item.itemId} · ${item.section}/${item.slot}${item.customName ? ` · ${item.customName}` : ""}</div>
+      </div>
       <div>x${item.count}</div>
     </div>
   `).join("");
@@ -319,13 +340,16 @@ function renderStatsDetail() {
     recordDetail.innerHTML = `<div class="status error">${state.stats?.message || "Statistics unavailable."}</div>`;
     return;
   }
-  const highlights = (state.stats.highlights ?? []).map((stat) => `
-    <div class="item-row">
-      <div class="slot-icon"></div>
-      <div>${stat.label}</div>
-      <div>${stat.formatted}</div>
-    </div>
-  `).join("");
+  const highlights = (state.stats.highlights ?? []).map((stat) => {
+    const icon = getStatIcon(stat.key);
+    return `
+      <div class="item-row" data-stat-key="${stat.key}" data-label="${escapeHtml(stat.label)}" data-value="${escapeHtml(stat.formatted)}">
+        <div class="slot-icon">${renderItemIcon(icon, stat.label)}</div>
+        <div>${stat.label}</div>
+        <div>${stat.formatted}</div>
+      </div>
+    `;
+  }).join("");
 
   recordDetail.innerHTML = `
     <div class="detail-head">
@@ -390,6 +414,210 @@ function formatTime(value) {
     return value;
   }
   return date.toLocaleString();
+}
+
+function getStatIcon(key) {
+  switch (key) {
+    case "deaths":
+      return "minecraft:skeleton_skull";
+    case "play_time":
+      return "minecraft:clock";
+    case "distance":
+      return "minecraft:leather_boots";
+    case "mob_kills":
+      return "minecraft:diamond_sword";
+    default:
+      return "";
+  }
+}
+
+function getStatDescription(key) {
+  switch (key) {
+    case "deaths":
+      return "Total times this player has died in the world.";
+    case "play_time":
+      return "Total active playing time logged on the server.";
+    case "distance":
+      return "Total distance traversed by the player across all dimensions.";
+    case "mob_kills":
+      return "Number of aggressive and passive mobs defeated.";
+    default:
+      return "";
+  }
+}
+
+function formatItemName(itemId) {
+  if (!itemId) return "";
+  const parts = itemId.split(":");
+  const name = parts[1] || parts[0] || itemId;
+  return name
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function initTooltip() {
+  const tooltip = document.querySelector("#mcTooltip");
+  if (!tooltip) return;
+
+  let mouseX = 0;
+  let mouseY = 0;
+
+  document.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    if (tooltip.style.display === "block") {
+      positionTooltip();
+    }
+  });
+
+  function positionTooltip() {
+    const offsetX = 15;
+    const offsetY = -15;
+    
+    let x = mouseX + offsetX;
+    let y = mouseY + offsetY;
+    
+    const width = tooltip.offsetWidth;
+    const height = tooltip.offsetHeight;
+    
+    if (x + width > window.innerWidth) {
+      x = mouseX - width - 15;
+    }
+    if (y + height > window.innerHeight) {
+      y = window.innerHeight - height - 15;
+    }
+    if (x < 10) x = 10;
+    if (y < 10) y = 10;
+
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
+  }
+
+  document.addEventListener("mouseover", (e) => {
+    const itemRow = e.target.closest(".item-row");
+    const advancementTile = e.target.closest(".advancement-tile");
+    const statCard = e.target.closest(".stat-card");
+    const mcButton = e.target.closest(".mc-button");
+    const playerCard = e.target.closest(".player-card");
+    const recordCard = e.target.closest(".record-card");
+
+    let content = "";
+
+    if (itemRow) {
+      const itemId = itemRow.dataset.itemId;
+      if (itemId) {
+        const count = itemRow.dataset.count;
+        const section = itemRow.dataset.section;
+        const slot = itemRow.dataset.slot;
+        const customName = itemRow.dataset.customName;
+
+        content = `<div class="tooltip-title" style="color: #ffffff; font-weight: bold;">${customName || formatItemName(itemId)}</div>`;
+        if (customName) {
+          content += `<div class="tooltip-sub" style="color: #55ffff; font-style: italic;">Original: ${formatItemName(itemId)}</div>`;
+        }
+        content += `<div style="color: #aaaaaa; margin-top: 4px;">ID: <span style="color: #55ff55;">${itemId}</span></div>`;
+        content += `<div style="color: #aaaaaa;">Location: <span style="color: #ff55ff;">${section}</span> (Slot ${slot})</div>`;
+        content += `<div style="color: #aaaaaa;">Amount: <span style="color: #ffff55;">x${count}</span></div>`;
+      } else if (itemRow.dataset.statKey) {
+        // Special case: stat rows in detail view
+        const label = itemRow.dataset.label;
+        const val = itemRow.dataset.value;
+        const desc = getStatDescription(itemRow.dataset.statKey);
+        content = `<div class="tooltip-title" style="color: #f3e46b; font-weight: bold;">${label}</div>`;
+        content += `<div style="color: #ffffff; font-size: 14px; margin-top: 4px;">Value: ${val}</div>`;
+        if (desc) {
+          content += `<div style="color: #bdc2c8; margin-top: 6px; font-size: 12px;">${desc}</div>`;
+        }
+      }
+    } else if (advancementTile) {
+      const title = advancementTile.dataset.title;
+      if (title) {
+        const desc = advancementTile.dataset.description;
+        const frame = advancementTile.dataset.frame || "task";
+        const dimension = advancementTile.dataset.dimension;
+        const timestamp = advancementTile.dataset.timestamp;
+
+        let titleColor = "#ffffff";
+        if (frame === "challenge") titleColor = "#d334b9";
+        else if (frame === "goal") titleColor = "#f3e46b";
+
+        content = `<div class="tooltip-title" style="color: ${titleColor}; font-weight: bold;">${title}</div>`;
+        content += `<div class="tooltip-sub" style="color: #ff55ff; font-size: 11px; text-transform: uppercase;">[${frame}]</div>`;
+        if (desc) {
+          content += `<div style="color: #aaccff; margin-top: 6px; font-style: italic;">"${desc}"</div>`;
+        }
+        if (dimension) {
+          content += `<div style="color: #aaaaaa; margin-top: 6px;">Dimension: <span style="color: #55ff55;">${dimension}</span></div>`;
+        }
+        if (timestamp) {
+          content += `<div style="color: #aaaaaa;">Earned: <span style="color: #55ffff;">${timestamp}</span></div>`;
+        }
+      }
+    } else if (statCard) {
+      const label = statCard.dataset.label;
+      if (label) {
+        const val = statCard.dataset.value;
+        const desc = getStatDescription(statCard.dataset.statKey);
+        content = `<div class="tooltip-title" style="color: #f3e46b; font-weight: bold;">${label}</div>`;
+        content += `<div style="color: #ffffff; font-size: 14px; margin-top: 4px;">Value: ${val}</div>`;
+        if (desc) {
+          content += `<div style="color: #bdc2c8; margin-top: 6px; font-size: 12px;">${desc}</div>`;
+        }
+      }
+    } else if (playerCard) {
+      const name = playerCard.querySelector("h3")?.textContent;
+      if (name) {
+        const logs = playerCard.querySelector(".record-meta")?.textContent;
+        const note = playerCard.querySelector(".record-note")?.textContent;
+        content = `<div class="tooltip-title" style="color: #55ff55; font-weight: bold;">${name}</div>`;
+        if (logs) content += `<div style="color: #ffffff; margin-top: 4px;">${logs}</div>`;
+        if (note) content += `<div style="color: #bdc2c8; margin-top: 2px; font-size: 12px;">${note}</div>`;
+      }
+    } else if (recordCard) {
+      const title = recordCard.querySelector("h3")?.textContent;
+      if (title) {
+        const count = recordCard.querySelector(".reason-pill")?.textContent || "";
+        const meta = recordCard.querySelector(".record-meta")?.textContent || "";
+        const note = recordCard.querySelector(".record-note")?.textContent || "";
+        content = `<div class="tooltip-title" style="color: #ffff55; font-weight: bold;">${title} ${count ? `<span style="color: #ffffff; font-size: 11px;">(${count})</span>` : ""}</div>`;
+        if (meta) content += `<div style="color: #aaaaaa; margin-top: 4px;">${meta}</div>`;
+        if (note) content += `<div style="color: #bdc2c8; margin-top: 2px; font-size: 12px; font-style: italic;">"${note}"</div>`;
+      }
+    } else if (mcButton) {
+      const title = mcButton.getAttribute("title");
+      if (title) {
+        content = `<div style="color: #ffffff;">${title}</div>`;
+      }
+    }
+
+    if (content) {
+      tooltip.innerHTML = content;
+      tooltip.style.display = "block";
+      positionTooltip();
+    }
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    const itemRow = e.target.closest(".item-row");
+    const advancementTile = e.target.closest(".advancement-tile");
+    const statCard = e.target.closest(".stat-card");
+    const mcButton = e.target.closest(".mc-button");
+    const playerCard = e.target.closest(".player-card");
+    const recordCard = e.target.closest(".record-card");
+
+    const related = e.relatedTarget;
+    if (related) {
+      if (itemRow && itemRow.contains(related)) return;
+      if (advancementTile && advancementTile.contains(related)) return;
+      if (statCard && statCard.contains(related)) return;
+      if (mcButton && mcButton.contains(related)) return;
+      if (playerCard && playerCard.contains(related)) return;
+      if (recordCard && recordCard.contains(related)) return;
+    }
+
+    tooltip.style.display = "none";
+  });
 }
 
 boot().catch((error) => {

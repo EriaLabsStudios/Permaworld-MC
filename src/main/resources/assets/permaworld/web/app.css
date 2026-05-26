@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
 :root {
     --stone-0: #111315;
     --stone-1: #1d2126;
@@ -19,7 +21,7 @@
 body {
     margin: 0;
     min-height: 100vh;
-    font-family: Monocraft, "Segoe UI Mono", Consolas, monospace;
+    font-family: Monocraft, "VT323", "Segoe UI Mono", Consolas, monospace;
     color: var(--ink);
     background:
         linear-gradient(180deg, rgba(114, 177, 78, 0.2), transparent 120px),
@@ -34,7 +36,27 @@ body {
 }
 .topbar, .panel {
     border: 4px solid #050505;
+    border-top: none;
     box-shadow: var(--shadow);
+    position: relative;
+}
+.topbar::before, .panel::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -4px;
+    right: -4px;
+    height: 8px;
+    background: repeating-linear-gradient(90deg, 
+        #5c8e32 0px 8px, 
+        #4c7828 8px 16px, 
+        #85c43f 16px 24px, 
+        #6fa237 24px 32px
+    );
+    border: 4px solid #050505;
+    border-bottom: none;
+    image-rendering: pixelated;
+    z-index: 10;
 }
 .topbar {
     display: flex;
@@ -261,6 +283,143 @@ body {
 }
 .status.ok { background: rgba(74, 125, 51, 0.55); }
 .status.error { background: rgba(183, 74, 74, 0.55); }
+
+/* Custom Minecraft Scrollbars */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0f1215;
+    border: 2px solid #050505;
+}
+::-webkit-scrollbar-thumb {
+    background: #5a626a;
+    border: 2px solid #0f1215;
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.08);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #7c858e;
+}
+
+/* Custom Input / Select Focus Glow */
+.mc-input:focus, .admin-pick select:focus {
+    border-color: var(--gold-1);
+    outline: none;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.12), 0 0 8px rgba(228, 206, 87, 0.4);
+}
+
+/* Button & Cards Micro-animations */
+.mc-button {
+    border: 3px solid #050505;
+    background: linear-gradient(180deg, #5a626a 0, #383f46 100%);
+    color: var(--ink);
+    padding: 10px 12px;
+    font: inherit;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.12);
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.mc-button:hover {
+    background: linear-gradient(180deg, #7c858e 0, #4c545d 100%);
+    color: #ffffff;
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.22);
+}
+.mc-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #0a0a0a;
+}
+.mc-button.is-active {
+    background: linear-gradient(180deg, #f3e46b 0, #bfaa35 100%);
+    color: #1a1a1a;
+    box-shadow: 3px 3px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.25);
+}
+.mc-button.is-active:hover {
+    background: linear-gradient(180deg, #fff285 0, #d6be3b 100%);
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 #0a0a0a;
+}
+.mc-button.restore {
+    background: linear-gradient(180deg, #5e92e2 0, #275dad 100%);
+}
+.mc-button.restore:hover {
+    background: linear-gradient(180deg, #7faaff 0, #3873c4 100%);
+}
+
+.player-card, .record-card, .advancement-tile {
+    transition: transform 0.1s ease, box-shadow 0.1s ease, outline 0.1s ease;
+}
+.player-card:hover, .record-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 #050505;
+}
+.player-card:active, .record-card:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 #050505;
+}
+
+/* Advancement frames specific styling */
+.advancement-tile.task {
+    border-color: #3f454c;
+    background: linear-gradient(180deg, #6c747c 0, #414850 100%);
+}
+.advancement-tile.goal {
+    border-color: #f3e46b;
+    background: linear-gradient(180deg, #5c4e1b 0, #2d260c 100%);
+    box-shadow: 0 0 10px rgba(243, 228, 107, 0.5), 3px 3px 0 #0a0a0a;
+}
+.advancement-tile.goal.active {
+    outline: 3px solid #ffffff;
+}
+.advancement-tile.challenge {
+    border-color: #bd30a4;
+    background: linear-gradient(180deg, #4b1a43 0, #22081c 100%);
+    box-shadow: 0 0 14px rgba(189, 48, 164, 0.7), 3px 3px 0 #0a0a0a;
+}
+.advancement-tile.challenge.active {
+    outline: 3px solid #55ffff;
+}
+.advancement-tile:hover {
+    transform: scale(1.05);
+    z-index: 5;
+}
+
+/* Stat card main alignment */
+.stat-card-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Premium Custom Minecraft Tooltip styles */
+.mc-tooltip {
+    position: fixed;
+    display: none;
+    z-index: 9999;
+    pointer-events: none;
+    background-color: rgba(16, 1, 16, 0.96);
+    border: 3px solid #2e0664;
+    outline: 3px solid #100110;
+    box-shadow: inset 0 0 0 3px #5000ff;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-family: Monocraft, "VT323", "Segoe UI Mono", Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 2px;
+    max-width: 340px;
+    word-wrap: break-word;
+}
+.mc-tooltip .tooltip-title {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+.mc-tooltip .tooltip-sub {
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
 @media (max-width: 1100px) {
     .layout { grid-template-columns: 1fr; }
     .stat-grid { grid-template-columns: 1fr; }
