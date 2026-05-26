@@ -126,6 +126,19 @@ public final class SlotLockManager {
         if (mode == null) {
             return null;
         }
+
+        if (mode == SlotMarkMode.LOCK) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null && inventorySlot >= 0 && inventorySlot < mc.player.getInventory().getContainerSize()) {
+                ItemStack stack = mc.player.getInventory().getItem(inventorySlot);
+                if (stack.isEmpty()) {
+                    slotMarks().remove(inventorySlot);
+                    ConfigManager.get().save();
+                    return null;
+                }
+            }
+        }
+
         return new SlotMark(mode, raw.itemId);
     }
 
@@ -136,7 +149,7 @@ public final class SlotLockManager {
         }
         return slot.container == mc.player.getInventory()
                 && slot.getContainerSlot() >= 0
-                && slot.getContainerSlot() < Inventory.INVENTORY_SIZE;
+                && slot.getContainerSlot() < mc.player.getInventory().getContainerSize();
     }
 
     public static boolean toggleSlotMark(Slot slot, SlotMarkMode mode) {
