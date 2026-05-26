@@ -6,9 +6,11 @@
   "client": [
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenAccessor",
+    "ClientPacketListenerMixin",
     "GuiMixin",
     "InventoryMixin",
     "LocalPlayerMixin",
+    "MerchantMenuMixin",
     "MerchantScreenMixin",
     "PackSelectionModelAccessor",
     "PackSelectionScreenMixin",
