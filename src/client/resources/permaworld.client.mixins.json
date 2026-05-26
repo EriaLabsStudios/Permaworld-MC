@@ -6,6 +6,7 @@
   "client": [
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenAccessor",
+    "ClientCommonPacketListenerImplMixin",
     "GuiMixin",
     "InventoryMixin",
     "LocalPlayerMixin",

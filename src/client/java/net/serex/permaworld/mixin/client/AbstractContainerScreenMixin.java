@@ -77,8 +77,9 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$sort$addButtons(CallbackInfo ci) {
+        SlotLockManager.clearActiveMode();
+
         if (isCreativeInventoryScreen()) {
-            SlotLockManager.clearActiveMode();
             return;
         }
 
@@ -226,6 +227,16 @@ public abstract class AbstractContainerScreenMixin {
                     slot.getContainerSlot(), toggled);
             ci.cancel();
             return;
+        }
+
+        if (input == ContainerInput.SWAP) {
+            int targetSlot = (button == 40) ? 40 : button;
+            if (SlotLockManager.isInventorySlotLocked(targetSlot)) {
+                DebugLog.log("slotlock", "Click SWAP cancelado: slot destino {} esta bloqueado.", targetSlot);
+                SlotLockManager.warnBlockedItem();
+                ci.cancel();
+                return;
+            }
         }
 
         if (SlotLockManager.isSlotLocked(slot)) {
