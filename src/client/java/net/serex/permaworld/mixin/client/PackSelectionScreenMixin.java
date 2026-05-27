@@ -154,6 +154,11 @@ public abstract class PackSelectionScreenMixin extends Screen {
         if (permaworld$profileDropdownOpen) {
             permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
         }
+
+        if (this.search != null) {
+            this.search.setX(this.width - 220);
+            this.search.setY(20);
+        }
     }
 
     @Override
