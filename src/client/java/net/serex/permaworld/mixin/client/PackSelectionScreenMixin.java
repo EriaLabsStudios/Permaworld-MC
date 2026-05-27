@@ -164,6 +164,10 @@ public abstract class PackSelectionScreenMixin extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta) {
         super.extractRenderState(extractor, mouseX, mouseY, tickDelta);
+        if (this.search != null) {
+            this.search.setX(this.width - 220);
+            this.search.setY(20);
+        }
         if (availablePackList == null || selectedPackList == null) {
             return;
         }
@@ -841,10 +845,9 @@ public abstract class PackSelectionScreenMixin extends Screen {
         return text.length() <= max ? text : text.substring(0, max - 3) + "...";
     }
 
-    @Override
-    public void rebuildWidgets() {
+    @Inject(method = "rebuildWidgets", at = @At("HEAD"))
+    private void permaworld$onRebuildWidgets(CallbackInfo ci) {
         this.search = null;
-        super.rebuildWidgets();
     }
 
     @Unique
