@@ -26,7 +26,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Mixin(PackSelectionScreen.class)
 public abstract class PackSelectionScreenMixin extends Screen {
@@ -370,22 +372,49 @@ public abstract class PackSelectionScreenMixin extends Screen {
         }
 
         PackSelectionModelAccessor accessor = (PackSelectionModelAccessor) model;
-        PackRepository repository = accessor.permaworld$getRepository();
-        repository.reload();
-
         List<Pack> selected = accessor.permaworld$getSelectedPacks();
+        List<Pack> unselected = accessor.permaworld$getUnselectedPacks();
+
+        // Obtenemos los IDs visibles en la pantalla (ya filtrados por Fabric/Vanilla)
+        // Los raw List<Pack> del modelo pueden contener packs internos de Fabric
+        // que Fabric filtra al interceptar getUnselected()/getSelected().
+        // Usamos los widgets de lista como fuente de verdad de los packs visibles.
+        Set<String> visiblePackIds = new HashSet<>();
+        if (availablePackList != null) {
+            availablePackList.children().forEach(e -> visiblePackIds.add(e.getPackId()));
+        }
+        if (selectedPackList != null) {
+            selectedPackList.children().forEach(e -> visiblePackIds.add(e.getPackId()));
+        }
+
+        // Combinamos todos los packs visibles actuales en una lista temporal
+        List<Pack> allVisiblePacks = new ArrayList<>();
+        allVisiblePacks.addAll(selected);
+        allVisiblePacks.addAll(unselected);
+        // Filtramos para excluir cualquier pack oculto de Fabric que esté en los raw lists
+        allVisiblePacks.removeIf(pack -> !visiblePackIds.contains(pack.getId()));
+
+        // Limpiamos las listas del modelo
         selected.clear();
+        unselected.clear();
+
+        // Clasificamos cada pack en base a si su ID está en el perfil
+        // Mantenemos el orden exacto del perfil en los seleccionados
         for (String packId : profile.packIds) {
-            Pack pack = repository.getPack(packId);
-            if (pack != null) {
-                selected.add(pack);
+            for (Pack pack : allVisiblePacks) {
+                if (pack.getId().equals(packId)) {
+                    selected.add(pack);
+                    break;
+                }
             }
         }
 
-        List<Pack> unselected = accessor.permaworld$getUnselectedPacks();
-        unselected.clear();
-        unselected.addAll(repository.getAvailablePacks());
-        unselected.removeAll(selected);
+        // Y lo que no esté seleccionado se va a unselected (manteniendo su filtro vanilla)
+        for (Pack pack : allVisiblePacks) {
+            if (!selected.contains(pack)) {
+                unselected.add(pack);
+            }
+        }
 
         permaworld$status = Component.translatable("permaworld.resourcepack.profile.applied");
         permaworld$activeProfile = profile.name;
