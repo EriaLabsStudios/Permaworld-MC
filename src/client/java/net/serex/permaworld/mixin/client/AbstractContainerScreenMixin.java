@@ -86,7 +86,10 @@ public abstract class AbstractContainerScreenMixin {
             addSortButtons();
         }
         if (ConfigManager.get().config().slotLock.enabled) {
-            addSlotMarkButtons();
+            String screenName = this.getClass().getSimpleName();
+            if (screenName.equals("InventoryScreen") || screenName.equals("ChestScreen")) {
+                addSlotMarkButtons();
+            }
         }
     }
 
@@ -421,5 +424,33 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         SlotMarkRenderer.renderIcon(extractor, slot.x, slot.y, mark.mode());
+    }
+
+    @Inject(
+            method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At("HEAD")
+    )
+    private void permaworld$slotLock$onExtractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta, CallbackInfo ci) {
+        permaworld$slotLock$updateButtonPositions();
+    }
+
+    @Unique
+    private void permaworld$slotLock$updateButtonPositions() {
+        if (!ConfigManager.get().config().slotLock.enabled) {
+            return;
+        }
+        int size = 14;
+        int gap = 2;
+        int x = this.leftPos + this.imageWidth + 4;
+        int y = this.topPos + this.imageHeight - size * 2 - gap - 36;
+
+        if (permaworld$favoriteMarkButton != null) {
+            permaworld$favoriteMarkButton.setX(x);
+            permaworld$favoriteMarkButton.setY(y);
+        }
+        if (permaworld$lockMarkButton != null) {
+            permaworld$lockMarkButton.setX(x);
+            permaworld$lockMarkButton.setY(y + size + gap);
+        }
     }
 }
