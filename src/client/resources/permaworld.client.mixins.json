@@ -10,6 +10,7 @@
     "GuiMixin",
     "InventoryMixin",
     "LocalPlayerMixin",
+    "MerchantMenuMixin",
     "MerchantScreenMixin",
     "PackSelectionModelAccessor",
     "PackSelectionScreenMixin",
