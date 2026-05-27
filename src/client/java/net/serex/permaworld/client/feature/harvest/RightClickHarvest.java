@@ -182,7 +182,13 @@ public final class RightClickHarvest implements FeatureModule {
     }
 
     private static BlockHitResult hitFor(BlockPos pos, BlockHitResult original) {
-        return new BlockHitResult(Vec3.atCenterOf(pos), original.getDirection(), pos, original.isInside());
+        BlockPos farmlandPos = pos.below();
+        return new BlockHitResult(
+                Vec3.atCenterOf(farmlandPos).add(0, 0.5, 0),
+                net.minecraft.core.Direction.UP,
+                farmlandPos,
+                original.isInside()
+        );
     }
 
     private static List<String> snapshotItemIds(Inventory inv) {
