@@ -11,6 +11,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.CropBlock;
@@ -90,23 +92,53 @@ public final class RightClickHarvest implements FeatureModule {
         }
 
         Inventory inv = local.getInventory();
-        int seedSlot = CropReplanter.findSeedSlot(cropId, snapshotItemIds(inv));
-        if (seedSlot < 0 || seedSlot >= 9) {
-            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en hotbar; click pasa a vanilla.", cropId);
+
+        // 1) ¿Tiene la semilla compatible directamente en la offhand?
+        ItemStack offhandStack = local.getOffhandItem();
+        String offhandItemId = BuiltInRegistries.ITEM.getKey(offhandStack.getItem()).toString();
+        boolean hasSeedInOffhand = HarvestRegistry.seedsFor(cropId).contains(offhandItemId);
+
+        int seedSlot = -1;
+        int menuSlotId = -1;
+
+        if (!hasSeedInOffhand) {
+            // Buscamos en el inventario (0..35)
+            seedSlot = CropReplanter.findSeedSlot(cropId, snapshotItemIds(inv));
+            if (seedSlot < 0) {
+                DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en el inventario; click pasa a vanilla.", cropId);
+                return InteractionResult.PASS;
+            }
+
+            // Buscamos el slot ID del menú que corresponde a seedSlot
+            for (Slot slot : local.inventoryMenu.slots) {
+                if (slot.container == inv && slot.getContainerSlot() == seedSlot) {
+                    menuSlotId = slot.index;
+                    break;
+                }
+            }
+
+            if (menuSlotId == -1) {
+                DebugLog.log("harvest", "Error: no se pudo mapear seedSlot {} a menuSlotId.", seedSlot);
+                return InteractionResult.PASS;
+            }
+        }
+
+        List<BlockPos> targets = matureSupportedCropsInArea(level, pos, cropId, hoeArea.size());
+        if (targets.isEmpty()) {
             return InteractionResult.PASS;
         }
-        List<BlockPos> targets = matureSupportedCropsInArea(level, pos, cropId, hoeArea.size());
-        DebugLog.log("harvest", "Cosechando {} cultivo(s) desde {} con semilla del slot {}.",
-                targets.size(), pos, seedSlot);
 
-        int previousSelected = inv.getSelectedSlot();
-        boolean restoreSelection = previousSelected != seedSlot;
-        inv.setSelectedSlot(seedSlot);
+        DebugLog.log("harvest", "Cosechando {} cultivo(s) desde {} usando offhand (hasSeedInOffhand={}, seedSlot={}, menuSlotId={}).",
+                targets.size(), pos, hasSeedInOffhand, seedSlot, menuSlotId);
+
+        // 2) Si no tiene la semilla en la offhand, la intercambiamos temporalmente con la offhand
+        if (!hasSeedInOffhand) {
+            gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
+        }
 
         try {
             for (BlockPos target : targets) {
-                // 1) Romper el cultivo con el flujo Vanilla de jugador. Esto
-                // envía la acción al servidor; destroyBlock() solo predice en cliente.
+                // Romper el cultivo con el flujo Vanilla de jugador.
                 boolean broken = gameMode.startDestroyBlock(target, hit.getDirection());
                 if (!broken) {
                     Permaworld.LOGGER.debug("startDestroyBlock devolvió false en {}", target);
@@ -115,14 +147,15 @@ public final class RightClickHarvest implements FeatureModule {
                 }
                 // Destruir localmente el bloque en el cliente para que sea AIR y el replante no falle por colisión local
                 level.destroyBlock(target, true);
-                
-                // 2) Replantar usando useItemOn sobre la misma cara/posición.
-                gameMode.useItemOn(local, InteractionHand.MAIN_HAND, hitFor(target, hit));
+
+                // Replantar usando la offhand (InteractionHand.OFF_HAND).
+                gameMode.useItemOn(local, InteractionHand.OFF_HAND, hitFor(target, hit));
                 DebugLog.log("harvest", "Replantado cultivo en {}.", target);
             }
         } finally {
-            if (restoreSelection) {
-                inv.setSelectedSlot(previousSelected);
+            // 3) Devolver la semilla a su sitio si hicimos swap
+            if (!hasSeedInOffhand) {
+                gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
             }
         }
 
