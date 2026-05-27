@@ -141,7 +141,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
                 permaworld$comboLabel(),
                 button -> {
                     permaworld$profileDropdownOpen = !permaworld$profileDropdownOpen;
-                    rebuildWidgets();
+                    permaworld$rebuild();
                 }
         ).bounds(panelX, comboY, comboWidth, 20).build());
 
@@ -257,7 +257,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
                         permaworld$selectedProfile = profile.name;
                         permaworld$profileDropdownOpen = false;
                         permaworld$status = Component.translatable("permaworld.resourcepack.profile.ready", profile.name);
-                        rebuildWidgets();
+                        permaworld$rebuild();
                     }
             ).bounds(x, rowY, width, 20).build());
         }
@@ -283,7 +283,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         String name = permaworld$profileNameBox == null ? "" : permaworld$profileNameBox.getValue().trim();
         if (name.isEmpty()) {
             permaworld$status = Component.translatable("permaworld.resourcepack.profile.name_required");
-            rebuildWidgets();
+            permaworld$rebuild();
             return;
         }
 
@@ -298,7 +298,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         permaworld$profiles.save();
         permaworld$profileDropdownOpen = false;
         permaworld$status = Component.translatable("permaworld.resourcepack.profile.saved");
-        rebuildWidgets();
+        permaworld$rebuild();
     }
 
     @Unique
@@ -306,7 +306,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         ResourcePackProfileStore.Profile profile = permaworld$profiles.find(permaworld$selectedProfile);
         if (profile == null) {
             permaworld$status = Component.translatable("permaworld.resourcepack.profile.name_required");
-            rebuildWidgets();
+            permaworld$rebuild();
             return;
         }
 
@@ -335,7 +335,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         permaworld$profiles.save();
         permaworld$profileDropdownOpen = false;
         permaworld$updateFilteredEntries(search == null ? "" : search.getValue());
-        rebuildWidgets();
+        permaworld$rebuild();
     }
 
     @Unique
@@ -429,7 +429,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         ResourcePackFileManager.PackFile pack = permaworld$fileManager.findInstalledByPackId(repository, packId).orElse(null);
         if (pack == null) {
             permaworld$status = Component.translatable("permaworld.resourcepack.delete.unavailable");
-            rebuildWidgets();
+            permaworld$rebuild();
             return true;
         }
 
@@ -845,9 +845,10 @@ public abstract class PackSelectionScreenMixin extends Screen {
         return text.length() <= max ? text : text.substring(0, max - 3) + "...";
     }
 
-    @Inject(method = "rebuildWidgets", at = @At("HEAD"))
-    private void permaworld$onRebuildWidgets(CallbackInfo ci) {
+    @Unique
+    private void permaworld$rebuild() {
         this.search = null;
+        rebuildWidgets();
     }
 
     @Unique
