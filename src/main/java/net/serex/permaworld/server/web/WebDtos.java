@@ -109,12 +109,22 @@ public final class WebDtos {
     private static String summary(JsonObject record) {
         String reason = normalize(string(record, "reason"));
         int itemCount = intValue(record, "itemCount");
+        if ("STRUCTURE_DISCOVERED".equals(reason)) {
+            if (record.has("metadata") && record.get("metadata").isJsonObject()) {
+                JsonObject meta = record.getAsJsonObject("metadata");
+                if (meta.has("name")) {
+                    return "Discovered " + meta.get("name").getAsString();
+                }
+            }
+            return "Discovered structure";
+        }
         return switch (reason) {
             case "DEATH" -> itemCount + " stacks recoverable";
             case "RESPAWN" -> "Player respawned";
             case "PATH_SAMPLE" -> "Movement sample";
             case "GAME_MODE_CHANGE" -> "Game mode changed";
             case "DIMENSION_CHANGE" -> "Dimension changed";
+            case "CURRENT_STATE" -> "Current live/logout state";
             case "ADVANCEMENT_DONE" -> string(record, "advancementTitle").isBlank()
                     ? "Advancement completed"
                     : string(record, "advancementTitle");
@@ -133,6 +143,8 @@ public final class WebDtos {
             case "JOIN" -> "Join";
             case "DISCONNECT" -> "Disconnect";
             case "MANUAL_SNAPSHOT" -> "Manual Snapshot";
+            case "CURRENT_STATE" -> "Current State";
+            case "STRUCTURE_DISCOVERED" -> "Structure Discovered";
             default -> reason == null || reason.isBlank() ? "Unknown" : reason;
         };
     }

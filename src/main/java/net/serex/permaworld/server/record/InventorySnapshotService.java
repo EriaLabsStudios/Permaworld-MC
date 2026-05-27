@@ -40,6 +40,29 @@ public final class InventorySnapshotService {
         record.addProperty("gameMode", player.gameMode.getGameModeForPlayer().getName());
         record.addProperty("itemCount", inventory.size());
         record.add("items", inventory);
+
+        try {
+            net.minecraft.stats.ServerStatsCounter stats = server.getPlayerList().getPlayerStats(player);
+            JsonObject statsJson = new JsonObject();
+            statsJson.addProperty("deaths", stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.DEATHS));
+            statsJson.addProperty("playTime", stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.PLAY_TIME));
+            statsJson.addProperty("timeSinceDeath", stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.TIME_SINCE_DEATH));
+            statsJson.addProperty("mobKills", stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.MOB_KILLS));
+            int distance = stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.WALK_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.SPRINT_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.SWIM_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.AVIATE_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.BOAT_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.MINECART_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.HORSE_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.WALK_UNDER_WATER_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.WALK_ON_WATER_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.FLY_ONE_CM)
+                    + stats.getValue(net.minecraft.stats.Stats.CUSTOM, net.minecraft.stats.Stats.CLIMB_ONE_CM);
+            statsJson.addProperty("distance", distance);
+            record.add("stats", statsJson);
+        } catch (Exception ignored) {}
+
         return record;
     }
 

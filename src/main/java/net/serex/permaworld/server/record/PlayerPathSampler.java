@@ -59,7 +59,64 @@ public final class PlayerPathSampler {
             lastPathSamples.put(uuid, position);
         }
 
+        if (samplePath) {
+            try {
+                net.minecraft.core.BlockPos pos = player.blockPosition();
+                net.minecraft.server.level.ServerLevel world = (net.minecraft.server.level.ServerLevel) player.level();
+                net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = world.registryAccess().get(net.minecraft.core.registries.Registries.STRUCTURE)
+                        .map(reg -> reg.value())
+                        .orElse(null);
+                if (registry != null) {
+                    for (net.minecraft.world.level.levelgen.structure.Structure structure : registry) {
+                        net.minecraft.world.level.levelgen.structure.StructureStart start = world.structureManager().getStructureAt(pos, structure);
+                        if (start != null && start.isValid()) {
+                            net.minecraft.resources.Identifier structureId = registry.getKey(structure);
+                            if (structureId != null) {
+                                net.minecraft.world.level.ChunkPos startPos = start.getChunkPos();
+                                String structKey = structureId.toString();
+                                String coordKey = startPos.toString();
+                                if (!hasDiscoveredStructure(server, player, structKey, coordKey)) {
+                                    JsonObject metadata = new JsonObject();
+                                    metadata.addProperty("structureId", structKey);
+                                    metadata.addProperty("coords", coordKey);
+                                    metadata.addProperty("name", formatStructureName(structKey));
+                                    InventorySnapshotService.appendActivity(server, player, "STRUCTURE_DISCOVERED", metadata);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
         states.put(uuid, new LastPlayerState(dimension, gameMode, alive));
+    }
+
+    private boolean hasDiscoveredStructure(MinecraftServer server, ServerPlayer player, String structureId, String coords) {
+        try {
+            PermaworldRecordStore store = PermaworldRecordStore.forServer(server);
+            for (JsonObject record : store.readPlayerRecords(player.getUUID())) {
+                if (record.has("activityType") && "STRUCTURE_DISCOVERED".equals(record.get("activityType").getAsString())) {
+                    if (record.has("metadata") && record.get("metadata").isJsonObject()) {
+                        JsonObject meta = record.getAsJsonObject("metadata");
+                        if (meta.has("structureId") && structureId.equals(meta.get("structureId").getAsString())) {
+                            if (meta.has("coords") && coords.equals(meta.get("coords").getAsString())) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private String formatStructureName(String structureId) {
+        if (structureId == null) return "Structure";
+        String path = structureId.contains(":") ? structureId.split(":")[1] : structureId;
+        return java.util.Arrays.stream(path.split("_"))
+                .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1))
+                .collect(java.util.stream.Collectors.joining(" "));
     }
 
     private boolean shouldRecordPath(UUID uuid, Vec3 position) {

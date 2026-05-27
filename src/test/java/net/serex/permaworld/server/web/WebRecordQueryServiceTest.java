@@ -52,6 +52,19 @@ class WebRecordQueryServiceTest {
         assertEquals("Monster Hunter", detail.get("summary").getAsString());
     }
 
+    @Test
+    void testOfflineStatsUnavailableGracefully() throws IOException {
+        Path root = Files.createTempDirectory("permaworld-web-records-stats");
+        PermaworldRecordStore store = new PermaworldRecordStore(root);
+        UUID playerId = UUID.randomUUID();
+        WebRecordQueryService service = new WebRecordQueryService(null, store);
+        JsonObject stats = service.playerStats(playerId);
+        
+        // When server is null, it should gracefully fall back to unavailable
+        assertTrue(stats.has("available"));
+        assertEquals(false, stats.get("available").getAsBoolean());
+    }
+
     private static JsonObject record(String id, String reason, String playerName, String timestamp, int itemCount) {
         JsonObject record = new JsonObject();
         record.addProperty("schemaVersion", 1);

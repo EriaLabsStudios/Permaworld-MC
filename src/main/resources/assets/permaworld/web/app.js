@@ -226,6 +226,9 @@ function getRecordIcon(record) {
   if (reason.includes("DEATH")) {
     return "minecraft:skeleton_skull";
   }
+  if (reason.includes("CURRENT_STATE") || reason.includes("CURRENT STATE")) {
+    return "minecraft:totem_of_undying";
+  }
   if (reason.includes("JOIN")) {
     return "minecraft:compass";
   }
@@ -246,6 +249,9 @@ function getRecordIcon(record) {
   }
   if (reason.includes("PATH") || reason.includes("ROUTE") || reason.includes("WALK")) {
     return "minecraft:map";
+  }
+  if (reason.includes("STRUCTURE") || reason.includes("DISCOVERED")) {
+    return "minecraft:filled_map";
   }
   
   // General fallback
@@ -567,6 +573,11 @@ function renderStatsDetail() {
   const lastConnected = state.stats?.lastConnected ? formatTime(state.stats.lastConnected) : "unknown";
   const lastPos = state.stats?.lastKnownPosition || "unknown";
   const playerName = state.stats?.playerName || (state.selectedPlayer ? state.selectedPlayer.playerName : "Player");
+  
+  const isOnline = hasStats && !!state.stats?.online;
+  const statusBadge = isOnline 
+    ? '<span class="reason-pill" style="background: rgba(85, 255, 85, 0.2); border-color: #55ff55; color: #55ff55;">ONLINE</span>'
+    : '<span class="reason-pill" style="background: rgba(183, 74, 74, 0.4); border-color: #b74a4a; color: #ff8888;">OFFLINE</span>';
 
   const highlights = hasStats ? (state.stats.highlights ?? []).map((stat) => {
     const icon = getStatIcon(stat.key);
@@ -582,7 +593,10 @@ function renderStatsDetail() {
   recordDetail.innerHTML = `
     <div class="detail-head">
       <h3>Player Summary</h3>
-      <span class="reason-pill">${playerName}</span>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span class="reason-pill">${playerName}</span>
+        ${statusBadge}
+      </div>
     </div>
     <div style="margin: 14px 0; border: 3px solid #050505; background: rgba(0, 0, 0, 0.24); padding: 12px; box-shadow: 3px 3px 0 #0a0a0a;">
       <div style="font-weight: bold; color: var(--gold-1); margin-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 4px;">General Info</div>
@@ -666,6 +680,18 @@ function getStatIcon(key) {
       return "minecraft:recovery_compass";
     case "days_survived":
       return "minecraft:sunflower";
+    case "food_eaten":
+      return "minecraft:cooked_beef";
+    case "animals_bred":
+      return "minecraft:wheat";
+    case "hostile_kills":
+      return "minecraft:zombie_head";
+    case "passive_kills":
+      return "minecraft:pig_spawn_egg";
+    case "tools_broken":
+      return "minecraft:wooden_pickaxe";
+    case "structures_discovered":
+      return "minecraft:spyglass";
     default:
       return "";
   }
@@ -685,6 +711,18 @@ function getStatDescription(key) {
       return "Real-life time elapsed since this player's last death.";
     case "days_survived":
       return "Minecraft in-game days successfully survived since the player's last death.";
+    case "food_eaten":
+      return "Total food items consumed by this player.";
+    case "animals_bred":
+      return "Number of baby animals successfully bred by the player.";
+    case "hostile_kills":
+      return "Hostile monsters defeated by this player.";
+    case "passive_kills":
+      return "Passive and neutral animals/mobs defeated.";
+    case "tools_broken":
+      return "Total number of tools, weapons, or items completely broken through use.";
+    case "structures_discovered":
+      return "Unique historical structures discovered and explored.";
     default:
       return "";
   }
