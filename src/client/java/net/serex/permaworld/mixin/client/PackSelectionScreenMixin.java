@@ -841,6 +841,12 @@ public abstract class PackSelectionScreenMixin extends Screen {
         return text.length() <= max ? text : text.substring(0, max - 3) + "...";
     }
 
+    @Override
+    public void rebuildWidgets() {
+        this.search = null;
+        super.rebuildWidgets();
+    }
+
     @Unique
     private enum DragList {
         NONE,
