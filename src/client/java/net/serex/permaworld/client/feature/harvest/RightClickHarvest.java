@@ -91,26 +91,17 @@ public final class RightClickHarvest implements FeatureModule {
 
         Inventory inv = local.getInventory();
         int seedSlot = CropReplanter.findSeedSlot(cropId, snapshotItemIds(inv));
-        if (seedSlot < 0) {
-            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla; click pasa a vanilla.", cropId);
+        if (seedSlot < 0 || seedSlot >= 9) {
+            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en hotbar; click pasa a vanilla.", cropId);
             return InteractionResult.PASS;
         }
         List<BlockPos> targets = matureSupportedCropsInArea(level, pos, cropId, hoeArea.size());
         DebugLog.log("harvest", "Cosechando {} cultivo(s) desde {} con semilla del slot {}.",
                 targets.size(), pos, seedSlot);
 
-        // Necesitamos que la semilla esté en la mano principal para que
-        // useItemOn la coloque. Si está fuera de la hotbar, hacemos pick.
         int previousSelected = inv.getSelectedSlot();
-        boolean restoreSelection = false;
-        if (seedSlot < 9) {
-            inv.setSelectedSlot(seedSlot);
-            restoreSelection = previousSelected != seedSlot;
-        } else {
-            // Pickea el slot al hotbar actual (equivalente a tecla "swap").
-            inv.pickSlot(seedSlot);
-            restoreSelection = false; // pickSlot ya gestiona la selección
-        }
+        boolean restoreSelection = previousSelected != seedSlot;
+        inv.setSelectedSlot(seedSlot);
 
         try {
             for (BlockPos target : targets) {
