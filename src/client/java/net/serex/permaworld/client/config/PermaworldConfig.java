@@ -16,6 +16,7 @@ public class PermaworldConfig {
     public SlotLockConfig slotLock = new SlotLockConfig();
     public TraderConfig trader = new TraderConfig();
     public HarvestConfig harvest = new HarvestConfig();
+    public ResourcePackConfig resourcePack = new ResourcePackConfig();
 
     /** Delay entre paquetes sintéticos (ms). Anti-cheat friendly. */
     public int packetDelayMs = 25;
@@ -120,5 +121,12 @@ public class PermaworldConfig {
         public int ironHoeArea = 2;
         public int diamondHoeArea = 3;
         public int netheriteHoeArea = 4;
+    }
+
+    public static class ResourcePackConfig {
+        /** Activa el panel de perfiles y el drag-and-drop en la pantalla de resource packs. */
+        public boolean enabled = true;
+        /** Muestra el icono de papelera para eliminar packs instalados desde esa pantalla. */
+        public boolean deleteButton = true;
     }
 }

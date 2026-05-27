@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
+import net.serex.permaworld.client.config.ConfigManager;
 import net.serex.permaworld.client.feature.resourcepack.ResourcePackFileManager;
 import net.serex.permaworld.client.feature.resourcepack.ResourcePackProfileStore;
 import org.spongepowered.asm.mixin.Mixin;
@@ -123,6 +124,9 @@ public abstract class PackSelectionScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$addProfileControls(CallbackInfo ci) {
+        if (!ConfigManager.get().config().resourcePack.enabled) {
+            return;
+        }
         permaworld$fileManager = new ResourcePackFileManager(packDir);
         permaworld$restoreActiveProfile();
 
@@ -436,6 +440,9 @@ public abstract class PackSelectionScreenMixin extends Screen {
     @Unique
     private void permaworld$renderTrashIcons(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
                                              TransferableSelectionList list) {
+        if (!ConfigManager.get().config().resourcePack.deleteButton) {
+            return;
+        }
         PackRepository repository = ((PackSelectionModelAccessor) model).permaworld$getRepository();
         List<TransferableSelectionList.Entry> entries = list.children();
         for (int i = 0; i < entries.size(); i++) {
@@ -512,6 +519,9 @@ public abstract class PackSelectionScreenMixin extends Screen {
     @Unique
     private boolean permaworld$handleTrashClick(MouseButtonEvent event) {
         if (event.button() != 0 || permaworld$fileManager == null) {
+            return false;
+        }
+        if (!ConfigManager.get().config().resourcePack.deleteButton) {
             return false;
         }
         TransferableSelectionList.Entry entry = permaworld$trashEntryAt(event.x(), event.y(), availablePackList);
