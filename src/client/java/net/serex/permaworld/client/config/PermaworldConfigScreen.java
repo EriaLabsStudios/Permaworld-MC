@@ -30,6 +30,7 @@ public final class PermaworldConfigScreen extends Screen {
             case SLOT_LOCK -> addSlotLockControls(x, row);
             case TRADER -> addTraderControls(x, row);
             case HARVEST -> addHarvestControls(x, row);
+            case RESOURCE_PACK -> addResourcePackControls(x, row);
         }
 
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
@@ -199,6 +200,17 @@ public final class PermaworldConfigScreen extends Screen {
                 1);
     }
 
+    private void addResourcePackControls(int x, int row) {
+        addControl(x, row, "permaworld.config.resource_pack.enabled",
+                () -> ConfigManager.get().config().resourcePack.enabled,
+                value -> ConfigManager.get().config().resourcePack.enabled = value);
+        row += 24;
+
+        addControl(x, row, "permaworld.config.resource_pack.delete_button",
+                () -> ConfigManager.get().config().resourcePack.deleteButton,
+                value -> ConfigManager.get().config().resourcePack.deleteButton = value);
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta) {
         extractMenuBackground(extractor);
@@ -277,7 +289,8 @@ public final class PermaworldConfigScreen extends Screen {
         QUICK_DROP("permaworld.config.tab.quick_drop"),
         SLOT_LOCK("permaworld.config.tab.slot_lock"),
         TRADER("permaworld.config.tab.trader"),
-        HARVEST("permaworld.config.tab.harvest");
+        HARVEST("permaworld.config.tab.harvest"),
+        RESOURCE_PACK("permaworld.config.tab.resource_pack");
 
         private final String translationKey;
 
