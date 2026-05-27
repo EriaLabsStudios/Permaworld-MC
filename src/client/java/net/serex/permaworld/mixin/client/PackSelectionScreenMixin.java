@@ -25,6 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(PackSelectionScreen.class)
@@ -105,6 +106,15 @@ public abstract class PackSelectionScreenMixin extends Screen {
     @Unique
     private Component permaworld$status = Component.empty();
 
+    @Unique
+    private Button permaworld$comboButton;
+
+    @Unique
+    private Button permaworld$applyButton;
+
+    @Unique
+    private final List<Button> permaworld$dropdownButtons = new ArrayList<>();
+
     protected PackSelectionScreenMixin(Component title) {
         super(title);
     }
@@ -137,23 +147,22 @@ public abstract class PackSelectionScreenMixin extends Screen {
         int comboY = y + 30;
         int applyWidth = Math.min(92, buttonWidth + 14);
         int comboWidth = panelWidth - applyWidth - 8;
-        ((ScreenAccessor) this).permaworld$addRenderableWidget(Button.builder(
-                permaworld$comboLabel(),
-                button -> {
-                    permaworld$profileDropdownOpen = !permaworld$profileDropdownOpen;
-                    permaworld$rebuild();
-                }
-        ).bounds(panelX, comboY, comboWidth, 20).build());
 
-        Button apply = Button.builder(Component.translatable("permaworld.resourcepack.profile.apply"),
+        permaworld$comboButton = Button.builder(
+                permaworld$comboLabel(),
+                button -> permaworld$toggleDropdown()
+        ).bounds(panelX, comboY, comboWidth, 20).build();
+        ((ScreenAccessor) this).permaworld$addRenderableWidget(permaworld$comboButton);
+
+        permaworld$applyButton = Button.builder(Component.translatable("permaworld.resourcepack.profile.apply"),
                 button -> permaworld$applyProfile()
         ).bounds(panelX + comboWidth + 8, comboY, applyWidth, 20).build();
-        apply.active = permaworld$profiles.find(permaworld$selectedProfile) != null;
-        ((ScreenAccessor) this).permaworld$addRenderableWidget(apply);
+        permaworld$applyButton.active = permaworld$profiles.find(permaworld$selectedProfile) != null;
+        ((ScreenAccessor) this).permaworld$addRenderableWidget(permaworld$applyButton);
 
-        if (permaworld$profileDropdownOpen) {
-            permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
-        }
+        permaworld$dropdownButtons.clear();
+        permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
+        permaworld$updateDropdownVisibility();
 
         if (this.search != null) {
             this.search.setX(this.width - 220);
@@ -251,22 +260,74 @@ public abstract class PackSelectionScreenMixin extends Screen {
         for (int i = 0; i < maxRows; i++) {
             ResourcePackProfileStore.Profile profile = profiles.get(i);
             int rowY = y + i * 22;
-            ((ScreenAccessor) this).permaworld$addRenderableWidget(Button.builder(
+            Button btn = Button.builder(
                     Component.literal(permaworld$trim(profile.name, 34)),
-                    button -> {
-                        permaworld$selectedProfile = profile.name;
-                        permaworld$profileDropdownOpen = false;
-                        permaworld$status = Component.translatable("permaworld.resourcepack.profile.ready", profile.name);
-                        permaworld$rebuild();
-                    }
-            ).bounds(x, rowY, width, 20).build());
+                    button -> permaworld$selectProfile(profile.name)
+            ).bounds(x, rowY, width, 20).build();
+            permaworld$dropdownButtons.add(btn);
+            ((ScreenAccessor) this).permaworld$addRenderableWidget(btn);
         }
         if (profiles.isEmpty()) {
             Button empty = Button.builder(Component.translatable("permaworld.resourcepack.profile.empty"), button -> { })
                     .bounds(x, y, width, 20)
                     .build();
             empty.active = false;
+            permaworld$dropdownButtons.add(empty);
             ((ScreenAccessor) this).permaworld$addRenderableWidget(empty);
+        }
+    }
+
+    @Unique
+    private void permaworld$toggleDropdown() {
+        permaworld$profileDropdownOpen = !permaworld$profileDropdownOpen;
+        permaworld$updateDropdownVisibility();
+    }
+
+    @Unique
+    private void permaworld$updateDropdownVisibility() {
+        for (Button btn : permaworld$dropdownButtons) {
+            btn.visible = permaworld$profileDropdownOpen;
+        }
+    }
+
+    @Unique
+    private void permaworld$selectProfile(String name) {
+        permaworld$selectedProfile = name;
+        permaworld$profileDropdownOpen = false;
+        permaworld$status = Component.translatable("permaworld.resourcepack.profile.ready", name);
+        if (permaworld$comboButton != null) {
+            permaworld$comboButton.setMessage(permaworld$comboLabel());
+        }
+        if (permaworld$applyButton != null) {
+            permaworld$applyButton.active = permaworld$profiles.find(name) != null;
+        }
+        permaworld$updateDropdownVisibility();
+    }
+
+    @Unique
+    private void permaworld$recreateDropdown() {
+        for (Button btn : permaworld$dropdownButtons) {
+            this.removeWidget(btn);
+        }
+        permaworld$dropdownButtons.clear();
+
+        int listLeft = availablePackList.getRowLeft();
+        int panelX = 24;
+        int panelWidth = Math.max(176, Math.min(430, listLeft - 48));
+        int y = availablePackList.getY() + 34;
+        int comboY = y + 30;
+        int buttonWidth = Math.min(86, Math.max(64, panelWidth / 4));
+        int applyWidth = Math.min(92, buttonWidth + 14);
+        int comboWidth = panelWidth - applyWidth - 8;
+
+        permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
+        permaworld$updateDropdownVisibility();
+
+        if (permaworld$comboButton != null) {
+            permaworld$comboButton.setMessage(permaworld$comboLabel());
+        }
+        if (permaworld$applyButton != null) {
+            permaworld$applyButton.active = permaworld$profiles.find(permaworld$selectedProfile) != null;
         }
     }
 
@@ -283,7 +344,6 @@ public abstract class PackSelectionScreenMixin extends Screen {
         String name = permaworld$profileNameBox == null ? "" : permaworld$profileNameBox.getValue().trim();
         if (name.isEmpty()) {
             permaworld$status = Component.translatable("permaworld.resourcepack.profile.name_required");
-            permaworld$rebuild();
             return;
         }
 
@@ -298,7 +358,7 @@ public abstract class PackSelectionScreenMixin extends Screen {
         permaworld$profiles.save();
         permaworld$profileDropdownOpen = false;
         permaworld$status = Component.translatable("permaworld.resourcepack.profile.saved");
-        permaworld$rebuild();
+        permaworld$recreateDropdown();
     }
 
     @Unique
@@ -306,7 +366,6 @@ public abstract class PackSelectionScreenMixin extends Screen {
         ResourcePackProfileStore.Profile profile = permaworld$profiles.find(permaworld$selectedProfile);
         if (profile == null) {
             permaworld$status = Component.translatable("permaworld.resourcepack.profile.name_required");
-            permaworld$rebuild();
             return;
         }
 
@@ -335,7 +394,14 @@ public abstract class PackSelectionScreenMixin extends Screen {
         permaworld$profiles.save();
         permaworld$profileDropdownOpen = false;
         permaworld$updateFilteredEntries(search == null ? "" : search.getValue());
-        permaworld$rebuild();
+
+        if (permaworld$comboButton != null) {
+            permaworld$comboButton.setMessage(permaworld$comboLabel());
+        }
+        if (permaworld$applyButton != null) {
+            permaworld$applyButton.active = permaworld$profiles.find(permaworld$selectedProfile) != null;
+        }
+        permaworld$updateDropdownVisibility();
     }
 
     @Unique
@@ -429,7 +495,6 @@ public abstract class PackSelectionScreenMixin extends Screen {
         ResourcePackFileManager.PackFile pack = permaworld$fileManager.findInstalledByPackId(repository, packId).orElse(null);
         if (pack == null) {
             permaworld$status = Component.translatable("permaworld.resourcepack.delete.unavailable");
-            permaworld$rebuild();
             return true;
         }
 
@@ -845,11 +910,6 @@ public abstract class PackSelectionScreenMixin extends Screen {
         return text.length() <= max ? text : text.substring(0, max - 3) + "...";
     }
 
-    @Unique
-    private void permaworld$rebuild() {
-        this.search = null;
-        rebuildWidgets();
-    }
 
     @Unique
     private enum DragList {
