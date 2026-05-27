@@ -1,0 +1,584 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+    --stone-0: #111315;
+    --stone-1: #1d2126;
+    --stone-2: #2f353d;
+    --stone-3: #747d87;
+    --stone-4: #d3d7dc;
+    --grass-1: #4a7d33;
+    --grass-2: #7db34b;
+    --gold-1: #e4ce57;
+    --lapis-1: #3475c9;
+    --redstone-1: #b74a4a;
+    --ink: #f3f3f3;
+    --muted: #bdc2c8;
+    --shadow: 4px 4px 0 #090909;
+    --slot: linear-gradient(180deg, #d4d6db 0%, #8c9299 100%);
+}
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Monocraft, "VT323", "Segoe UI Mono", Consolas, monospace;
+    color: var(--ink);
+    background:
+        linear-gradient(180deg, rgba(114, 177, 78, 0.2), transparent 120px),
+        linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15)),
+        repeating-linear-gradient(0deg, #2a2f35 0 40px, #252a30 40px 80px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 40px, rgba(0,0,0,0.03) 40px 80px);
+}
+.app {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.topbar, .panel {
+    border: 4px solid #050505;
+    border-top: none;
+    box-shadow: var(--shadow);
+    position: relative;
+}
+.topbar::before, .panel::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -4px;
+    right: -4px;
+    height: 8px;
+    background: repeating-linear-gradient(90deg, 
+        #5c8e32 0px 8px, 
+        #4c7828 8px 16px, 
+        #85c43f 16px 24px, 
+        #6fa237 24px 32px
+    );
+    border: 4px solid #050505;
+    border-bottom: none;
+    image-rendering: pixelated;
+    z-index: 10;
+}
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 18px 22px;
+    background: linear-gradient(180deg, #343940 0, #1a1e23 100%);
+}
+.topbar h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+.topbar p, .panel-title, .admin-pick span, .record-meta, .empty, .record-note { color: var(--muted); }
+.layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr) 340px;
+    gap: 20px;
+}
+.panel {
+    background: linear-gradient(180deg, #545c65 0, #2b3138 14px, #23292f 100%);
+    padding: 14px;
+}
+.panel-title {
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.mc-input, .admin-pick select {
+    width: 100%;
+    border: 3px solid #050505;
+    background: #0f1215;
+    color: var(--ink);
+    padding: 10px 12px;
+    font: inherit;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.08);
+}
+.player-list, .record-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+.record-list.advancement-view {
+    display: block;
+}
+.record-list.stats-view {
+    gap: 14px;
+}
+.player-card, .record-card {
+    border: 3px solid #050505;
+    box-shadow: 3px 3px 0 #0a0a0a;
+    background: linear-gradient(180deg, #6c747c 0, #414850 100%);
+    padding: 12px;
+    cursor: pointer;
+}
+.player-card.active, .record-card.active {
+    outline: 3px solid var(--gold-1);
+}
+.player-card h3, .record-card h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+.toolbar {
+    margin-bottom: 12px;
+}
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mc-button {
+    border: 3px solid #050505;
+    background: linear-gradient(180deg, #5a626a 0, #383f46 100%);
+    color: var(--ink);
+    padding: 10px 12px;
+    font: inherit;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #0a0a0a;
+}
+.mc-button.is-active {
+    background: linear-gradient(180deg, #f3e46b 0, #bfaa35 100%);
+    color: #1a1a1a;
+}
+.mc-button.restore {
+    background: linear-gradient(180deg, #5e92e2 0, #275dad 100%);
+}
+.record-header, .detail-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+.record-main {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+}
+.reason-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border: 2px solid #050505;
+    background: rgba(0, 0, 0, 0.28);
+}
+.detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    margin: 16px 0;
+}
+.detail-grid dt { color: var(--muted); }
+.detail-grid dd { margin: 0; }
+.item-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+.item-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    border: 3px solid #050505;
+    background: rgba(0, 0, 0, 0.24);
+    padding: 8px;
+}
+.slot-icon {
+    width: 44px;
+    height: 44px;
+    border: 3px solid #050505;
+    background: var(--slot);
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.35);
+}
+.slot-icon.large {
+    width: 52px;
+    height: 52px;
+}
+.advancement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 12px;
+}
+.advancement-tile {
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    min-height: 78px;
+    padding: 10px;
+    border: 3px solid #050505;
+    box-shadow: 3px 3px 0 #0a0a0a;
+    background: linear-gradient(180deg, #6c747c 0, #414850 100%);
+    cursor: pointer;
+}
+.advancement-tile.active {
+    outline: 3px solid var(--gold-1);
+}
+.slot-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+}
+.slot-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: #171717;
+    font-size: 10px;
+    text-align: center;
+}
+.advancement-description {
+    margin: 10px 0 14px;
+}
+.advancement-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.stat-card, .leaderboard {
+    border: 3px solid #050505;
+    background: rgba(0, 0, 0, 0.24);
+    box-shadow: 3px 3px 0 #0a0a0a;
+}
+.stat-card {
+    padding: 12px;
+}
+.stat-value {
+    margin-top: 8px;
+    font-size: 1.2rem;
+    color: var(--gold-1);
+}
+.leaderboards {
+    display: grid;
+    gap: 12px;
+}
+.leaderboard h3 {
+    margin: 0;
+    padding: 12px;
+    border-bottom: 3px solid #050505;
+    background: rgba(255,255,255,0.06);
+}
+.leaderboard-list {
+    display: grid;
+}
+.leaderboard-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.status {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 3px solid #050505;
+}
+.status.ok { background: rgba(74, 125, 51, 0.55); }
+.status.error { background: rgba(183, 74, 74, 0.55); }
+
+/* Custom Minecraft Scrollbars */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0f1215;
+    border: 2px solid #050505;
+}
+::-webkit-scrollbar-thumb {
+    background: #5a626a;
+    border: 2px solid #0f1215;
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.08);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #7c858e;
+}
+
+/* Custom Input / Select Focus Glow */
+.mc-input:focus, .admin-pick select:focus {
+    border-color: var(--gold-1);
+    outline: none;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.12), 0 0 8px rgba(228, 206, 87, 0.4);
+}
+
+/* Button & Cards Micro-animations */
+.mc-button {
+    border: 3px solid #050505;
+    background: linear-gradient(180deg, #5a626a 0, #383f46 100%);
+    color: var(--ink);
+    padding: 10px 12px;
+    font: inherit;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.12);
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.mc-button:hover {
+    background: linear-gradient(180deg, #7c858e 0, #4c545d 100%);
+    color: #ffffff;
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.22);
+}
+.mc-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #0a0a0a;
+}
+.mc-button.is-active {
+    background: linear-gradient(180deg, #f3e46b 0, #bfaa35 100%);
+    color: #1a1a1a;
+    box-shadow: 3px 3px 0 #0a0a0a, inset 2px 2px 0 rgba(255,255,255,0.25);
+}
+.mc-button.is-active:hover {
+    background: linear-gradient(180deg, #fff285 0, #d6be3b 100%);
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 #0a0a0a;
+}
+.mc-button.restore {
+    background: linear-gradient(180deg, #5e92e2 0, #275dad 100%);
+}
+.mc-button.restore:hover {
+    background: linear-gradient(180deg, #7faaff 0, #3873c4 100%);
+}
+
+.player-card, .record-card, .advancement-tile {
+    transition: transform 0.1s ease, box-shadow 0.1s ease, outline 0.1s ease;
+}
+.player-card:hover, .record-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 #050505;
+}
+.player-card:active, .record-card:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 #050505;
+}
+
+/* Advancement frames specific styling */
+.advancement-tile.task {
+    border-color: #3f454c;
+    background: linear-gradient(180deg, #6c747c 0, #414850 100%);
+}
+.advancement-tile.goal {
+    border-color: #f3e46b;
+    background: linear-gradient(180deg, #5c4e1b 0, #2d260c 100%);
+    box-shadow: 0 0 10px rgba(243, 228, 107, 0.5), 3px 3px 0 #0a0a0a;
+}
+.advancement-tile.goal.active {
+    outline: 3px solid #ffffff;
+}
+.advancement-tile.challenge {
+    border-color: #bd30a4;
+    background: linear-gradient(180deg, #4b1a43 0, #22081c 100%);
+    box-shadow: 0 0 14px rgba(189, 48, 164, 0.7), 3px 3px 0 #0a0a0a;
+}
+.advancement-tile.challenge.active {
+    outline: 3px solid #55ffff;
+}
+.advancement-tile:hover {
+    transform: scale(1.05);
+    z-index: 5;
+}
+.advancement-tile.locked {
+    filter: grayscale(1) opacity(0.45);
+    border-color: #2b3138;
+    background: linear-gradient(180deg, #3a3f45 0, #22262b 100%);
+    box-shadow: 3px 3px 0 #050505;
+}
+.advancement-tile.locked:hover {
+    filter: grayscale(0.2) opacity(0.85);
+    transform: scale(1.05);
+    z-index: 5;
+}
+
+/* Stat card main alignment */
+.stat-card-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Premium Custom Minecraft Tooltip styles */
+.mc-tooltip {
+    position: fixed;
+    display: none;
+    z-index: 9999;
+    pointer-events: none;
+    background-color: rgba(16, 1, 16, 0.96);
+    border: 3px solid #2e0664;
+    outline: 3px solid #100110;
+    box-shadow: inset 0 0 0 3px #5000ff;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-family: Monocraft, "VT323", "Segoe UI Mono", Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 2px;
+    max-width: 340px;
+    word-wrap: break-word;
+}
+.mc-tooltip .tooltip-title {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+.mc-tooltip .tooltip-sub {
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+@media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr; }
+}
+
+/* Compact Player Cards with Head Avatars */
+.player-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    width: 100%;
+    text-align: left;
+}
+.player-head {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #050505;
+    background: #444444;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+}
+.player-info-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.player-info-wrapper h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.player-info-wrapper .record-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Uniform Record Cards styling */
+.record-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 92px;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-align: left;
+    width: 100%;
+}
+.record-content-wrapper {
+    overflow: hidden;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.record-card h3 {
+    margin: 0 0 2px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem !important;
+}
+.record-card .record-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.record-card .record-note {
+    font-size: 11px;
+    color: #a0a0a0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Custom page background image and glossy settings */
+body {
+    background-image: url('/background.png'), url('/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-color: #121418;
+}
+
+.glossy-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    background: rgba(18, 20, 26, var(--glossy-opacity, 0.5));
+    backdrop-filter: blur(var(--glossy-blur, 10px));
+    -webkit-backdrop-filter: blur(var(--glossy-blur, 10px));
+    pointer-events: none;
+    transition: background 0.05s ease, backdrop-filter 0.05s ease;
+}
+
+/* Minecraft range slider styling */
+.mc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 20px;
+    background: #1e1e24;
+    border: 3px solid #050505;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    outline: none;
+    margin: 0;
+    vertical-align: middle;
+}
+.mc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 14px;
+    background: linear-gradient(180deg, #8c949c 0, #5c6268 100%);
+    border: 2px solid #050505;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+}
+.mc-slider::-moz-range-thumb {
+    width: 12px;
+    height: 14px;
+    background: linear-gradient(180deg, #8c949c 0, #5c6268 100%);
+    border: 2px solid #050505;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+}
+.topbar-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: bold;
+    margin-right: 16px;
+}
+.topbar-slider span {
+    text-shadow: 1px 1px 0 #000;
+}

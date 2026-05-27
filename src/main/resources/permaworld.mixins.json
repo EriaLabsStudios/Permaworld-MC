@@ -4,6 +4,8 @@
   "package": "net.serex.permaworld.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "PlayerAdvancementsMixin",
+    "ServerPlayerDeathMixin"
   ],
   "injectors": {
     "defaultRequire": 1

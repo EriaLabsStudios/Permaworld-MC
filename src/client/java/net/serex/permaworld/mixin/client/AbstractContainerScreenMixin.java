@@ -51,6 +51,15 @@ public abstract class AbstractContainerScreenMixin {
     private Button permaworld$lockMarkButton;
 
     @Unique
+    private Button permaworld$sortByNameButton;
+
+    @Unique
+    private Button permaworld$sortByCountButton;
+
+    @Unique
+    private Button permaworld$sortByCategoryButton;
+
+    @Unique
     private final Set<Integer> permaworld$dragProcessedSlots = new HashSet<>();
 
     @Unique
@@ -87,7 +96,10 @@ public abstract class AbstractContainerScreenMixin {
             addSortButtons();
         }
         if (ConfigManager.get().config().slotLock.enabled) {
-            addSlotMarkButtons();
+            String screenName = this.getClass().getSimpleName();
+            if (screenName.equals("InventoryScreen") || screenName.equals("ChestScreen")) {
+                addSlotMarkButtons();
+            }
         }
     }
 
@@ -100,9 +112,9 @@ public abstract class AbstractContainerScreenMixin {
         int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
         int y = sortButtonY(buttonSize, sort);
 
-        addSortButton(x, y, buttonSize, "A", SortMode.NAME);
-        addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
-        addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
+        permaworld$sortByNameButton = addSortButton(x, y, buttonSize, "A", SortMode.NAME);
+        permaworld$sortByCountButton = addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
+        permaworld$sortByCategoryButton = addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
     }
 
     @Unique
@@ -165,13 +177,14 @@ public abstract class AbstractContainerScreenMixin {
         return ((Object) this).getClass().getSimpleName().contains("CreativeModeInventoryScreen");
     }
 
-    private void addSortButton(int x, int y, int size, String label, SortMode mode) {
+    private Button addSortButton(int x, int y, int size, String label, SortMode mode) {
         String key = SortFeedback.key(mode);
         Button button = Button.builder(Component.literal(label), ignored -> InventorySorter.sortFromButton(mode))
                 .bounds(x, y, size, size)
                 .tooltip(Tooltip.create(Component.translatable("permaworld.sort.tooltip." + key)))
                 .build();
         ((ScreenAccessor) this).permaworld$addRenderableWidget(button);
+        return button;
     }
 
     @Inject(
@@ -404,6 +417,7 @@ public abstract class AbstractContainerScreenMixin {
             at = @At("TAIL")
     )
     private void permaworld$slotLock$onExtractSlot(GuiGraphicsExtractor extractor, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        permaworld$slotLock$updateButtonPositions();
         if (slot == null) return;
 
         if (ConfigManager.get().config().sort.enabled && SortFeedback.shouldHighlight(slot)) {
@@ -432,5 +446,48 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         SlotMarkRenderer.renderIcon(extractor, slot.x, slot.y, mark.mode());
+    }
+
+    @Unique
+    private void permaworld$slotLock$updateButtonPositions() {
+        // 1. Reposition SlotLock Buttons
+        if (ConfigManager.get().config().slotLock.enabled) {
+            int size = 14;
+            int gap = 2;
+            int x = this.leftPos + this.imageWidth + 4;
+            int y = this.topPos + this.imageHeight - size * 2 - gap - 36;
+
+            if (permaworld$favoriteMarkButton != null) {
+                permaworld$favoriteMarkButton.setX(x);
+                permaworld$favoriteMarkButton.setY(y);
+            }
+            if (permaworld$lockMarkButton != null) {
+                permaworld$lockMarkButton.setX(x);
+                permaworld$lockMarkButton.setY(y + size + gap);
+            }
+        }
+
+        // 2. Reposition Sort Buttons
+        if (ConfigManager.get().config().sort.enabled) {
+            PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+            int buttonSize = Math.max(8, sort.buttonSize);
+            int gap = Math.max(0, sort.buttonGap);
+            int totalWidth = buttonSize * 3 + gap * 2;
+            int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
+            int y = sortButtonY(buttonSize, sort);
+
+            if (permaworld$sortByNameButton != null) {
+                permaworld$sortByNameButton.setX(x);
+                permaworld$sortByNameButton.setY(y);
+            }
+            if (permaworld$sortByCountButton != null) {
+                permaworld$sortByCountButton.setX(x + buttonSize + gap);
+                permaworld$sortByCountButton.setY(y);
+            }
+            if (permaworld$sortByCategoryButton != null) {
+                permaworld$sortByCategoryButton.setX(x + (buttonSize + gap) * 2);
+                permaworld$sortByCategoryButton.setY(y);
+            }
+        }
     }
 }
