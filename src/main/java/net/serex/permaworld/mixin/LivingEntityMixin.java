@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
 
-    @Inject(method = {"hurt", "damage"}, at = @At("HEAD"))
+    @Inject(method = {"hurt", "damage", "method_6078", "m_6469_"}, at = @At("HEAD"))
     private void permaworld$onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity victim = (LivingEntity) (Object) this;
         if (victim.level().isClientSide() || amount <= 0) {
@@ -42,7 +42,7 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    @Inject(method = "causeFallDamage", at = @At("HEAD"))
+    @Inject(method = {"causeFallDamage", "method_6011", "m_142535_"}, at = @At("HEAD"))
     private void permaworld$onFallDistance(float fallDistance, float damageMultiplier, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity instanceof ServerPlayer player && fallDistance > 0) {

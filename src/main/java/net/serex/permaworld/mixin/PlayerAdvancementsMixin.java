@@ -17,7 +17,7 @@ public abstract class PlayerAdvancementsMixin {
     @Shadow
     private ServerPlayer player;
 
-    @Inject(method = "award", at = @At("RETURN"))
+    @Inject(method = {"award", "method_12813", "m_12812_", "m_12813_"}, at = @At("RETURN"))
     private void permaworld$recordAdvancement(AdvancementHolder advancement, String criterion,
                                               CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValue()) {

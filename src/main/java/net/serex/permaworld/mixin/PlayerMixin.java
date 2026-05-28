@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Player.class)
 public abstract class PlayerMixin {
 
-    @Inject(method = "giveExperiencePoints", at = @At("HEAD"))
+    @Inject(method = {"giveExperiencePoints", "method_7316", "m_6115_"}, at = @At("HEAD"))
     private void permaworld$onGiveXpPoints(int xp, CallbackInfo ci) {
         Player player = (Player) (Object) this;
         if (player instanceof ServerPlayer serverPlayer && xp > 0) {
@@ -20,7 +20,7 @@ public abstract class PlayerMixin {
         }
     }
 
-    @Inject(method = "giveExperienceLevels", at = @At("HEAD"))
+    @Inject(method = {"giveExperienceLevels", "method_7302", "m_6104_"}, at = @At("HEAD"))
     private void permaworld$onGiveXpLevels(int levels, CallbackInfo ci) {
         Player player = (Player) (Object) this;
         if (player instanceof ServerPlayer serverPlayer && levels > 0) {
@@ -28,7 +28,7 @@ public abstract class PlayerMixin {
         }
     }
 
-    @Inject(method = "onEnchantmentPerformed", at = @At("HEAD"))
+    @Inject(method = {"onEnchantmentPerformed", "method_7294", "m_7294_", "m_142533_"}, at = @At("HEAD"))
     private void permaworld$onEnchantment(ItemStack stack, int cost, CallbackInfo ci) {
         Player player = (Player) (Object) this;
         if (player instanceof ServerPlayer serverPlayer && stack != null && !stack.isEmpty()) {
