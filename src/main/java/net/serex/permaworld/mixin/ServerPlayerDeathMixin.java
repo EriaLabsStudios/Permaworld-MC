@@ -15,5 +15,6 @@ public abstract class ServerPlayerDeathMixin {
     private void permaworld$captureDeathInventory(DamageSource damageSource, CallbackInfo ci) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         InventorySnapshotService.appendSnapshot(player.level().getServer(), player, "DEATH");
+        net.serex.permaworld.server.record.ExtendedStatsManager.recordDeath(player.level().getServer(), player.getUUID());
     }
 }

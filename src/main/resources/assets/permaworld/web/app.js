@@ -211,6 +211,16 @@ async function loadRecords() {
 async function loadStats() {
   state.records = [];
   state.selectedRecord = null;
+  
+  if (!state.allStructures) {
+    try {
+      state.allStructures = await loadJson("/api/structures");
+    } catch (e) {
+      console.warn("Failed to load structures list:", e);
+      state.allStructures = [];
+    }
+  }
+
   state.stats = await loadJson(`/api/players/${state.selectedPlayer.uuid}/stats`);
   renderStats();
   renderStatsDetail();
@@ -434,13 +444,183 @@ function renderStats() {
     `;
   }).join("");
 
+  const ext = state.stats.extendedStats || {
+    totalDamageDealt: 0,
+    totalDamageTaken: 0,
+    damageDealtSinceDeath: 0,
+    damageTakenSinceDeath: 0,
+    blocksFallen: 0,
+    fallDamageReceived: 0,
+    totalXpGained: 0,
+    totalLevelsGained: 0,
+    enchantedItemsCount: 0,
+    mobsDamage: [],
+    enchantments: [],
+    discoveredStructures: []
+  };
+
+  const mobsDamageHtml = ext.mobsDamage && ext.mobsDamage.length
+    ? ext.mobsDamage.map((entry) => `
+        <div class="leaderboard-row">
+          <div><span style="color: #ff5555; font-weight: bold;">☠ ${escapeHtml(entry.source)}</span></div>
+          <div>${entry.damage.toFixed(1)} ❤</div>
+        </div>`).join("")
+    : '<div class="leaderboard-row"><div>Ningún daño registrado aún.</div><div>0 ❤</div></div>';
+
+  const enchantmentsHtml = ext.enchantments && ext.enchantments.length
+    ? ext.enchantments.map((entry) => {
+        const percent = Math.min(100, (entry.count / Math.max(1, ext.enchantedItemsCount)) * 100);
+        return `
+        <div class="enchantment-row">
+          <div class="ench-name">${formatEnchantmentName(entry.enchantment)}</div>
+          <div class="ench-bar-container">
+            <div class="ench-bar" style="width: ${percent}%;"></div>
+          </div>
+          <div class="ench-count">${entry.count} veces</div>
+        </div>`;
+      }).join("")
+    : '<div class="empty-small">Ningún encantamiento realizado aún.</div>';
+
+  const allStructs = state.allStructures || [];
+  const discoveredSet = new Set(ext.discoveredStructures || []);
+  const structuresHtml = allStructs.length
+    ? allStructs.map((structId) => {
+        const isDiscovered = discoveredSet.has(structId);
+        return `
+        <div class="structure-tile ${isDiscovered ? 'found' : 'missing'}" data-struct-id="${structId}">
+          <div class="struct-status">${isDiscovered ? '✔' : '🔒'}</div>
+          <div class="struct-name">${formatStructureName(structId)}</div>
+        </div>`;
+      }).join("")
+    : '<div class="empty-small">No hay estructuras registradas en el servidor.</div>';
+
   recordList.innerHTML = `
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Estadísticas Nativas</div>
     <div class="stat-grid">${highlights}</div>
+
+    <div style="font-weight: bold; margin: 18px 0 6px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Registro de Combate y Caídas</div>
+    <div class="stat-grid">
+      <div class="stat-card ext-damage-dealt">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:netherite_sword", "Daño Causado")}</div>
+          <div>
+            <div class="record-meta">Daño Total Causado</div>
+            <div class="stat-value" style="color: #ff5555;">${ext.totalDamageDealt.toFixed(1)} ❤</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-damage-taken">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:netherite_chestplate", "Daño Sufrido")}</div>
+          <div>
+            <div class="record-meta">Daño Total Sufrido</div>
+            <div class="stat-value" style="color: #ff5555;">${ext.totalDamageTaken.toFixed(1)} ❤</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-damage-dealt-life">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:diamond_sword", "Daño en esta Vida")}</div>
+          <div>
+            <div class="record-meta">Daño Causado (Esta Vida)</div>
+            <div class="stat-value" style="color: #ff8888;">${ext.damageDealtSinceDeath.toFixed(1)} ❤</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-damage-taken-life">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:diamond_chestplate", "Daño Sufrido en esta Vida")}</div>
+          <div>
+            <div class="record-meta">Daño Sufrido (Esta Vida)</div>
+            <div class="stat-value" style="color: #ff8888;">${ext.damageTakenSinceDeath.toFixed(1)} ❤</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-fall-blocks">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:leather_boots", "Bloques Caídos")}</div>
+          <div>
+            <div class="record-meta">Bloques Totales Caídos</div>
+            <div class="stat-value" style="color: #aa88ff;">${ext.blocksFallen.toFixed(1)} bloques</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-fall-damage">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:feather", "Daño de Caída")}</div>
+          <div>
+            <div class="record-meta">Daño de Caída Sufrido</div>
+            <div class="stat-value" style="color: #aa88ff;">${ext.fallDamageReceived.toFixed(1)} ❤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-weight: bold; margin: 18px 0 6px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Experiencia y Encantamientos</div>
+    <div class="stat-grid">
+      <div class="stat-card ext-xp">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:experience_bottle", "XP total")}</div>
+          <div>
+            <div class="record-meta">Experiencia Total Conseguida</div>
+            <div class="stat-value" style="color: #55ff55;">${ext.totalXpGained} XP</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-xp-levels">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:emerald", "Niveles ganados")}</div>
+          <div>
+            <div class="record-meta">Niveles Totales Conseguidos</div>
+            <div class="stat-value" style="color: #55ff55;">${ext.totalLevelsGained} niveles</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card ext-enchant-count" style="grid-column: span 2;">
+        <div class="stat-card-main">
+          <div class="slot-icon">${renderItemIcon("minecraft:enchanting_table", "Objetos Encantados")}</div>
+          <div>
+            <div class="record-meta">Cosas Encantadas</div>
+            <div class="stat-value" style="color: #55ffff;">${ext.enchantedItemsCount} objetos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="leaderboards" style="margin-top: 14px;">
+      <section class="leaderboard">
+        <h3>Desglose de Encantamientos Obtenidos</h3>
+        <div style="padding: 12px 16px;">
+          ${enchantmentsHtml}
+        </div>
+      </section>
+    </div>
+
+    <div style="font-weight: bold; margin: 18px 0 6px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Daño Sufrido por Criatura & Tablas del Mundo</div>
     <div class="leaderboards">
-      ${renderLeaderboard("Blocks Mined", state.stats.blocksMined)}
-      ${renderLeaderboard("Items Crafted", state.stats.itemsCrafted)}
-      ${renderLeaderboard("Items Picked Up", state.stats.itemsPickedUp)}
-      ${renderLeaderboard("Entities Killed", state.stats.entitiesKilled)}
+      <section class="leaderboard">
+        <h3>Criaturas y Fuentes más Letales (Daño infligido al jugador)</h3>
+        <div class="leaderboard-list">
+          ${mobsDamageHtml}
+        </div>
+      </section>
+    </div>
+
+    <div class="leaderboards" style="margin-top: 14px;">
+      ${renderLeaderboard("Bloques Minados", state.stats.blocksMined)}
+      ${renderLeaderboard("Objetos Fabricados", state.stats.itemsCrafted)}
+      ${renderLeaderboard("Objetos Recogidos", state.stats.itemsPickedUp)}
+      ${renderLeaderboard("Criaturas Derrotadas", state.stats.entitiesKilled)}
+    </div>
+
+    <div style="font-weight: bold; margin: 24px 0 6px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Matriz de Descubrimiento de Estructuras</div>
+    <div class="structure-matrix-panel">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 12px; text-align: left;">
+        Muestra la lista de todas las estructuras oficiales del servidor y el estado de descubrimiento del jugador:
+      </div>
+      <div class="structure-grid">
+        ${structuresHtml}
+      </div>
     </div>
   `;
 }
@@ -917,4 +1097,22 @@ function updateGlossy(value) {
   const blur = decimal * 24; // Blur up to 24px
   document.documentElement.style.setProperty("--glossy-opacity", opacity);
   document.documentElement.style.setProperty("--glossy-blur", `${blur}px`);
+}
+
+function formatEnchantmentName(id) {
+  if (!id) return "";
+  const path = id.includes(":") ? id.split(":")[1] : id;
+  return path
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function formatStructureName(id) {
+  if (!id) return "Structure";
+  const path = id.includes(":") ? id.split(":")[1] : id;
+  return path
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

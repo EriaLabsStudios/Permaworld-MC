@@ -582,3 +582,104 @@ body {
 .topbar-slider span {
     text-shadow: 1px 1px 0 #000;
 }
+
+/* Extended Stats Styling */
+.enchantment-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+.ench-name {
+    width: 160px;
+    font-weight: bold;
+    color: #ffffff;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: left;
+}
+.ench-bar-container {
+    flex-grow: 1;
+    height: 12px;
+    background: #0f1215;
+    border: 2px solid #050505;
+    box-shadow: inset 1px 1px 0 rgba(0, 0, 0, 0.4);
+    position: relative;
+}
+.ench-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3475c9 0%, #55ffff 100%);
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+.ench-count {
+    width: 80px;
+    text-align: right;
+    color: var(--gold-1);
+    font-weight: bold;
+}
+.empty-small {
+    padding: 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Structure Discovery Matrix */
+.structure-matrix-panel {
+    border: 3px solid #050505;
+    background: rgba(0, 0, 0, 0.24);
+    box-shadow: 3px 3px 0 #0a0a0a;
+    padding: 16px;
+    margin-top: 14px;
+}
+.structure-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+.structure-tile {
+    border: 2px solid #050505;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 74px;
+    font-size: 11px;
+    box-shadow: 2px 2px 0 #050505;
+    transition: transform 0.1s ease;
+}
+.structure-tile:hover {
+    transform: scale(1.04);
+}
+.structure-tile.found {
+    background: linear-gradient(180deg, #4c7828 0%, #2f4f18 100%);
+    border-color: #5c8e32;
+    color: #ffffff;
+}
+.structure-tile.missing {
+    background: linear-gradient(180deg, #3a3f45 0, #22262b 100%);
+    border-color: #2b3138;
+    color: #888888;
+    opacity: 0.65;
+}
+.struct-status {
+    font-size: 14px;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+.structure-tile.found .struct-status {
+    color: #55ff55;
+    text-shadow: 1px 1px 0 #000;
+}
+.structure-tile.missing .struct-status {
+    color: #ff5555;
+}
+.struct-name {
+    font-weight: bold;
+    line-height: 1.2;
+    word-break: break-word;
+}

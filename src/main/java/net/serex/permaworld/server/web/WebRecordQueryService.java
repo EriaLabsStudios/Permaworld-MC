@@ -343,6 +343,9 @@ public final class WebRecordQueryService {
                 payload.add("itemsCrafted", topItemsOffline(offlineStats, "minecraft:crafted"));
                 payload.add("itemsPickedUp", topItemsOffline(offlineStats, "minecraft:picked_up"));
                 payload.add("entitiesKilled", topEntitiesOffline(offlineStats));
+
+                addExtendedStatsToPayload(payload, playerId);
+
                 return payload;
             }
 
@@ -400,6 +403,9 @@ public final class WebRecordQueryService {
         payload.add("itemsCrafted", topItems(stats, Stats.ITEM_CRAFTED));
         payload.add("itemsPickedUp", topItems(stats, Stats.ITEM_PICKED_UP));
         payload.add("entitiesKilled", topEntities(stats));
+
+        addExtendedStatsToPayload(payload, playerId);
+
         return payload;
     }
 
@@ -767,6 +773,73 @@ public final class WebRecordQueryService {
                 dto.addProperty("iconLabel", icon.getHoverName().getString());
                 array.add(dto);
             });
+        }
+        return array;
+    }
+
+    private void addExtendedStatsToPayload(JsonObject payload, UUID playerId) {
+        net.serex.permaworld.server.record.ExtendedStatsManager.PlayerStats ext = net.serex.permaworld.server.record.ExtendedStatsManager.get(server, playerId);
+        JsonObject extJson = new JsonObject();
+        extJson.addProperty("totalDamageDealt", ext.totalDamageDealt);
+        extJson.addProperty("totalDamageTaken", ext.totalDamageTaken);
+        extJson.addProperty("damageDealtSinceDeath", ext.damageDealtSinceDeath);
+        extJson.addProperty("damageTakenSinceDeath", ext.damageTakenSinceDeath);
+        extJson.addProperty("blocksFallen", ext.blocksFallen);
+        extJson.addProperty("fallDamageReceived", ext.fallDamageReceived);
+        extJson.addProperty("totalXpGained", ext.totalXpGained);
+        extJson.addProperty("totalLevelsGained", ext.totalLevelsGained);
+        extJson.addProperty("enchantedItemsCount", ext.enchantedItemsCount);
+        
+        // Mobs damage (sorted)
+        com.google.gson.JsonArray mobsDamageArr = new com.google.gson.JsonArray();
+        ext.mobsDamage.entrySet().stream()
+                .sorted(java.util.Map.Entry.<String, Double>comparingByValue().reversed())
+                .forEach(entry -> {
+                    JsonObject entryJson = new JsonObject();
+                    entryJson.addProperty("source", entry.getKey());
+                    entryJson.addProperty("damage", entry.getValue());
+                    mobsDamageArr.add(entryJson);
+                });
+        extJson.add("mobsDamage", mobsDamageArr);
+
+        // Enchantments (sorted)
+        com.google.gson.JsonArray enchantmentsArr = new com.google.gson.JsonArray();
+        ext.enchantments.entrySet().stream()
+                .sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed())
+                .forEach(entry -> {
+                    JsonObject entryJson = new JsonObject();
+                    entryJson.addProperty("enchantment", entry.getKey());
+                    entryJson.addProperty("count", entry.getValue());
+                    enchantmentsArr.add(entryJson);
+                });
+        extJson.add("enchantments", enchantmentsArr);
+
+        // Discovered structures
+        com.google.gson.JsonArray structuresArr = new com.google.gson.JsonArray();
+        ext.discoveredStructures.forEach(structuresArr::add);
+        extJson.add("discoveredStructures", structuresArr);
+
+        payload.add("extendedStats", extJson);
+    }
+
+    public JsonArray allStructures() {
+        JsonArray array = new JsonArray();
+        if (server == null) {
+            return array;
+        }
+        net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = server.registryAccess().get(net.minecraft.core.registries.Registries.STRUCTURE)
+                .map(reg -> reg.value())
+                .orElse(null);
+        if (registry != null) {
+            List<String> ids = new ArrayList<>();
+            for (net.minecraft.world.level.levelgen.structure.Structure structure : registry) {
+                net.minecraft.resources.Identifier key = registry.getKey(structure);
+                if (key != null) {
+                    ids.add(key.toString());
+                }
+            }
+            ids.sort(String::compareTo);
+            ids.forEach(array::add);
         }
         return array;
     }

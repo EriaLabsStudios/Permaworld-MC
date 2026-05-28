@@ -81,6 +81,7 @@ public final class PlayerPathSampler {
                                     metadata.addProperty("coords", coordKey);
                                     metadata.addProperty("name", formatStructureName(structKey));
                                     InventorySnapshotService.appendActivity(server, player, "STRUCTURE_DISCOVERED", metadata);
+                                    ExtendedStatsManager.recordStructureDiscovered(server, player.getUUID(), structKey);
                                 }
                             }
                         }
