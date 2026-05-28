@@ -174,6 +174,10 @@ async function loadCurrentView() {
     await loadStats();
     return;
   }
+  if (state.filter === "ADMIN") {
+    await loadAdminConsole();
+    return;
+  }
   await loadRecords();
 }
 
@@ -224,6 +228,265 @@ async function loadStats() {
   state.stats = await loadJson(`/api/players/${state.selectedPlayer.uuid}/stats`);
   renderStats();
   renderStatsDetail();
+}
+
+async function loadAdminConsole() {
+  state.records = [];
+  state.selectedRecord = null;
+  state.stats = null;
+  
+  recordList.classList.remove("stats-view");
+  recordList.classList.add("admin-view");
+
+  if (!state.selectedAdmin) {
+    recordList.innerHTML = `
+      <div class="status error" style="margin: 20px; text-align: center; border-radius: 8px; border: 2px solid #ff5555; background: rgba(255, 85, 85, 0.1);">
+        <h3 style="color: #ff5555; margin-bottom: 10px; text-shadow: 1px 1px 0 #000;">🔓 Acceso Denegado / Consola Bloqueada</h3>
+        <p style="font-size: 11px;">Por favor, selecciona un Administrador en el menú superior izquierdo para autorizar el acceso y firmar las solicitudes de consola.</p>
+      </div>`;
+    recordDetail.innerHTML = `
+      <div class="empty">
+        <h3>Admin no seleccionado</h3>
+        <p>Usa la barra de selección superior para identificarte como administrador OP.</p>
+      </div>`;
+    return;
+  }
+
+  recordList.innerHTML = `
+    <div class="admin-dashboard">
+      <!-- Left Side: Terminal -->
+      <div class="admin-console-panel">
+        <div class="terminal-header">
+          <span class="terminal-title">⌨ Consola de Logs del Servidor</span>
+          <button class="mc-button font-small" id="refreshLogsBtn" style="padding: 2px 8px;">↻ Recargar Logs</button>
+        </div>
+        <div class="terminal-body" id="logTerminal">Cargando logs del servidor...</div>
+        <form class="terminal-input-container" id="terminalForm">
+          <span class="terminal-prompt">&gt;</span>
+          <input type="text" id="terminalInput" class="terminal-input" placeholder="Escribe un comando de Minecraft (ej: /tps, /say Hola) y pulsa Enter..." autocomplete="off">
+          <button type="submit" class="mc-button font-small" style="padding: 2px 12px;">Enviar</button>
+        </form>
+      </div>
+      
+      <!-- Right Side: Performance -->
+      <div class="admin-performance-panel">
+        <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Rendimiento</div>
+        <div class="perf-grid">
+          <div class="perf-card">
+            <div class="perf-label">TPS</div>
+            <div class="perf-value" id="perfTps">--</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">RAM</div>
+            <div class="perf-value" id="perfRam">--</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">Online</div>
+            <div class="perf-value" id="perfPlayersCount">--</div>
+          </div>
+        </div>
+        
+        <div style="font-weight: bold; margin: 18px 0 8px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Acciones Rápidas</div>
+        <div class="quick-actions-grid">
+          <button class="mc-button action-btn" data-cmd="time set day">☀ Día</button>
+          <button class="mc-button action-btn" data-cmd="time set night">🌙 Noche</button>
+          <button class="mc-button action-btn" data-cmd="weather clear">☁ Despejar</button>
+          <button class="mc-button action-btn" data-cmd="weather rain">🌧 Lluvia</button>
+          <button class="mc-button action-btn" data-cmd="save-all">💾 Guardar</button>
+          <button class="mc-button action-btn" data-cmd="whitelist list">📋 Whitelist</button>
+        </div>
+      </div>
+    </div>`;
+
+  recordDetail.innerHTML = `
+    <div class="online-players-detail">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Jugadores Activos</div>
+      <div id="onlinePlayersList" class="online-players-list">Cargando jugadores online...</div>
+    </div>`;
+
+  const refreshBtn = document.querySelector("#refreshLogsBtn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => reloadLogs());
+  }
+
+  const form = document.querySelector("#terminalForm");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.querySelector("#terminalInput");
+      if (!input) return;
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = "";
+      await sendCommand(cmd);
+    });
+  }
+
+  const quickButtons = document.querySelectorAll(".action-btn");
+  quickButtons.forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const cmd = btn.dataset.cmd;
+      if (cmd) {
+        await sendCommand(cmd);
+      }
+    });
+  });
+
+  await reloadLogs();
+  await reloadStatus();
+}
+
+async function reloadLogs() {
+  const terminal = document.querySelector("#logTerminal");
+  if (!terminal) return;
+  try {
+    const logs = await loadJson(`/api/admin/logs?admin=${encodeURIComponent(state.selectedAdmin)}`);
+    terminal.innerHTML = "";
+    if (logs.length === 0) {
+      terminal.innerHTML = '<div class="terminal-line system">No hay logs registrados en el archivo logs/latest.log.</div>';
+    } else {
+      for (const line of logs) {
+        const lineEl = document.createElement("div");
+        lineEl.className = "terminal-line";
+        if (line.includes("[ERROR]") || line.includes("/ERROR")) {
+          lineEl.classList.add("error");
+        } else if (line.includes("[WARN]") || line.includes("/WARN")) {
+          lineEl.classList.add("warn");
+        } else if (line.includes("[INFO]") || line.includes("/INFO")) {
+          lineEl.classList.add("info");
+        }
+        lineEl.textContent = line;
+        terminal.appendChild(lineEl);
+      }
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  } catch (e) {
+    console.error("Failed to load logs:", e);
+    terminal.innerHTML = `<div class="terminal-line system error">Error al cargar logs: ${e.message}</div>`;
+  }
+}
+
+async function reloadStatus() {
+  const tpsEl = document.querySelector("#perfTps");
+  const ramEl = document.querySelector("#perfRam");
+  const countEl = document.querySelector("#perfPlayersCount");
+  const playersListEl = document.querySelector("#onlinePlayersList");
+  
+  if (!tpsEl) return;
+
+  try {
+    const status = await loadJson(`/api/admin/status?admin=${encodeURIComponent(state.selectedAdmin)}`);
+    if (!status.online) {
+      tpsEl.textContent = "OFFLINE";
+      ramEl.textContent = "OFFLINE";
+      countEl.textContent = "OFFLINE";
+      playersListEl.innerHTML = '<div class="empty-small">Servidor desconectado.</div>';
+      return;
+    }
+
+    tpsEl.textContent = status.tps;
+    if (status.tps >= 18) {
+      tpsEl.style.color = "#55ff55";
+    } else if (status.tps >= 15) {
+      tpsEl.style.color = "#ffff55";
+    } else {
+      tpsEl.style.color = "#ff5555";
+    }
+
+    ramEl.textContent = `${status.usedMemoryMb}MB / ${status.maxMemoryMb}MB`;
+    countEl.textContent = `${status.players.length} jugadores`;
+
+    playersListEl.innerHTML = "";
+    if (status.players.length === 0) {
+      playersListEl.innerHTML = '<div class="empty-small">No hay jugadores conectados al servidor.</div>';
+    } else {
+      for (const p of status.players) {
+        const item = document.createElement("div");
+        item.className = "online-player-item";
+        
+        const healthPercent = Math.min(100, (p.health / p.maxHealth) * 100);
+        const dimensionName = p.dimension.includes(":") ? p.dimension.split(":")[1] : p.dimension;
+
+        item.innerHTML = `
+          <div class="player-item-header">
+            <img src="https://minotar.net/helm/${p.name}/24.png" class="player-head" alt="${p.name}">
+            <div class="player-item-name-box">
+              <span class="player-item-name">${p.name}</span>
+              <span class="player-item-ping">${p.ping}ms ping</span>
+            </div>
+          </div>
+          <div class="player-item-details">
+            <div>📍 <strong>Pos:</strong> ${p.x}, ${p.y}, ${p.z} (${dimensionName})</div>
+            <div class="health-bar-row">
+              ❤️ <strong>Vida:</strong>
+              <div class="ench-bar-container" style="flex: 1; margin-left: 8px; height: 8px;">
+                <div class="ench-bar" style="width: ${healthPercent}%; background: #ff5555;"></div>
+              </div>
+              <span style="font-size: 10px; margin-left: 6px;">${p.health}/${p.maxHealth}</span>
+            </div>
+          </div>
+          <div class="player-item-actions">
+            <button class="mc-button font-small action-btn-inline" data-cmd="effect give ${p.name} minecraft:instant_health">Curar</button>
+            <button class="mc-button font-small action-btn-inline" data-cmd="gamemode creative ${p.name}">Creativo</button>
+            <button class="mc-button font-small action-btn-inline" data-cmd="gamemode survival ${p.name}">Superv.</button>
+            <button class="mc-button font-small action-btn-inline error" data-cmd="kick ${p.name}">Kick</button>
+          </div>
+        `;
+        playersListEl.appendChild(item);
+      }
+
+      const inlineButtons = playersListEl.querySelectorAll(".action-btn-inline");
+      inlineButtons.forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const cmd = btn.dataset.cmd;
+          if (cmd) {
+            await sendCommand(cmd);
+          }
+        });
+      });
+    }
+  } catch (e) {
+    console.error("Failed to load status:", e);
+  }
+}
+
+async function sendCommand(cmd) {
+  const terminal = document.querySelector("#logTerminal");
+  if (!terminal) return;
+
+  const userLine = document.createElement("div");
+  userLine.className = "terminal-line command";
+  userLine.textContent = `> ${cmd}`;
+  terminal.appendChild(userLine);
+  terminal.scrollTop = terminal.scrollHeight;
+
+  try {
+    const res = await loadJson(`/api/admin/command?admin=${encodeURIComponent(state.selectedAdmin)}&cmd=${encodeURIComponent(cmd)}`, {
+      method: "POST"
+    });
+
+    const responseLines = res.output.split("\n");
+    for (const line of responseLines) {
+      if (!line.trim()) continue;
+      const respLine = document.createElement("div");
+      respLine.className = "terminal-line response";
+      respLine.textContent = line;
+      terminal.appendChild(respLine);
+    }
+    terminal.scrollTop = terminal.scrollHeight;
+
+    setTimeout(() => {
+      reloadLogs();
+      reloadStatus();
+    }, 400);
+
+  } catch (e) {
+    const errLine = document.createElement("div");
+    errLine.className = "terminal-line system error";
+    errLine.textContent = `Error al ejecutar comando: ${e.message}`;
+    terminal.appendChild(errLine);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
 }
 
 function getRecordIcon(record) {

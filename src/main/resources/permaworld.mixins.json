@@ -8,7 +8,8 @@
     "PlayerAdvancementsMixin",
     "ServerPlayerDeathMixin",
     "LivingEntityMixin",
-    "PlayerMixin"
+    "PlayerMixin",
+    "EnchantedItemTriggerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

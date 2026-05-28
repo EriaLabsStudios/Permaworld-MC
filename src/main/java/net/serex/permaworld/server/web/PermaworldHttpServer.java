@@ -110,6 +110,10 @@ public final class PermaworldHttpServer {
                 writeStatus(exchange, 404, "Missing item texture");
                 return;
             }
+            if (path.startsWith("/api/admin/")) {
+                handleAdminApi(exchange, path);
+                return;
+            }
             if (path.startsWith("/api/players/")) {
                 handlePlayerApi(exchange, path);
                 return;
@@ -119,6 +123,57 @@ public final class PermaworldHttpServer {
             Permaworld.LOGGER.error("Error en request web {}", exchange.getRequestURI(), e);
             writeStatus(exchange, 500, "Internal error");
         }
+    }
+
+    private void handleAdminApi(HttpExchange exchange, String path) throws IOException {
+        String adminName = queryValue(exchange.getRequestURI().getQuery(), "admin")
+                .map(s -> {
+                    try {
+                        return java.net.URLDecoder.decode(s, StandardCharsets.UTF_8);
+                    } catch (Exception e) {
+                        return s;
+                    }
+                })
+                .orElse("");
+        
+        if (!queryService.authorizeAdmin(adminName)) {
+            writeStatus(exchange, 403, "No autorizado");
+            return;
+        }
+
+        if ("/api/admin/logs".equals(path)) {
+            com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+            queryService.readLatestLogLines(150).forEach(array::add);
+            writeJson(exchange, array);
+            return;
+        }
+
+        if ("/api/admin/command".equals(path) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            String cmd = queryValue(exchange.getRequestURI().getQuery(), "cmd")
+                    .map(s -> {
+                        try {
+                            return java.net.URLDecoder.decode(s, StandardCharsets.UTF_8);
+                        } catch (Exception e) {
+                            return s;
+                        }
+                    })
+                    .orElse("");
+            if (cmd.isBlank()) {
+                writeStatus(exchange, 400, "Comando vacio");
+                return;
+            }
+            com.google.gson.JsonObject res = new com.google.gson.JsonObject();
+            res.addProperty("output", queryService.executeAdminCommand(cmd));
+            writeJson(exchange, res);
+            return;
+        }
+
+        if ("/api/admin/status".equals(path)) {
+            writeJson(exchange, queryService.serverStatus());
+            return;
+        }
+
+        writeStatus(exchange, 404, "Not found");
     }
 
     private void handlePlayerApi(HttpExchange exchange, String path) throws IOException {
@@ -167,6 +222,9 @@ public final class PermaworldHttpServer {
             }
             byte[] body = stream.readAllBytes();
             exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.getResponseHeaders().set("Cache-Control", "no-cache, no-store, must-revalidate");
+            exchange.getResponseHeaders().set("Pragma", "no-cache");
+            exchange.getResponseHeaders().set("Expires", "0");
             exchange.sendResponseHeaders(200, body.length);
             try (OutputStream output = exchange.getResponseBody()) {
                 output.write(body);

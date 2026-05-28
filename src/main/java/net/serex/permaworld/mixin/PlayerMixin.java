@@ -27,26 +27,4 @@ public abstract class PlayerMixin {
             ExtendedStatsManager.recordLevelsGained(serverPlayer.level().getServer(), serverPlayer.getUUID(), levels);
         }
     }
-
-    @Inject(method = "onEnchantmentPerformed", at = @At("HEAD"))
-    private void permaworld$onEnchantment(ItemStack stack, int cost, CallbackInfo ci) {
-        Player player = (Player) (Object) this;
-        if (player instanceof ServerPlayer serverPlayer && stack != null && !stack.isEmpty()) {
-            ExtendedStatsManager.recordEnchantedItem(serverPlayer.level().getServer(), serverPlayer.getUUID());
-
-            try {
-                net.minecraft.world.item.enchantment.ItemEnchantments enchantments = stack.getEnchantments();
-                for (java.util.Map.Entry<net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment>, Integer> entry : enchantments.entrySet()) {
-                    net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> holder = entry.getKey();
-                    net.minecraft.resources.Identifier id = holder.unwrapKey()
-                            .map(net.minecraft.resources.ResourceKey::identifier)
-                            .orElse(null);
-                    String name = id != null ? id.toString() : "unknown";
-                    ExtendedStatsManager.recordEnchantment(serverPlayer.level().getServer(), serverPlayer.getUUID(), name);
-                }
-            } catch (Exception e) {
-                net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error recording enchantment", e);
-            }
-        }
-    }
 }

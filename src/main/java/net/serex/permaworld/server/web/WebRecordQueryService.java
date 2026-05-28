@@ -856,4 +856,148 @@ public final class WebRecordQueryService {
         }
         return array;
     }
+
+    public boolean authorizeAdmin(String adminName) {
+        if (adminName == null || adminName.isBlank() || server == null) return false;
+        net.minecraft.server.level.ServerPlayer player = server.getPlayerList().getPlayerByName(adminName);
+        return player != null && isAdmin(player, server);
+    }
+
+    public List<String> readLatestLogLines(int lineCount) {
+        List<String> lines = new ArrayList<>();
+        java.nio.file.Path logPath = java.nio.file.Path.of("logs/latest.log");
+        if (java.nio.file.Files.exists(logPath)) {
+            try {
+                List<String> allLines = java.nio.file.Files.readAllLines(logPath);
+                int size = allLines.size();
+                for (int i = size - 1; i >= 0 && lines.size() < lineCount; i--) {
+                    String line = allLines.get(i);
+                    String lower = line.toLowerCase();
+                    if (lower.contains("error") || 
+                        lower.contains("warn") || 
+                        lower.contains("fatal") || 
+                        lower.contains("exception") || 
+                        lower.contains("permaworld") || 
+                        lower.contains("died") || 
+                        lower.contains("completed the advancement") || 
+                        lower.contains("has reached the advancement")) {
+                        lines.add(0, line);
+                    }
+                }
+            } catch (Exception e) {
+                lines.add("Error al leer logs: " + e.getMessage());
+            }
+        } else {
+            lines.add("Archivo logs/latest.log no encontrado.");
+        }
+        return lines;
+    }
+
+    public String executeAdminCommand(String commandLine) {
+        if (server == null) return "Servidor fuera de linea";
+        
+        final String finalCmd = commandLine.startsWith("/") ? commandLine.substring(1) : commandLine;
+        
+        StringBuilder output = new StringBuilder();
+        net.minecraft.commands.CommandSource customSource = new net.minecraft.commands.CommandSource() {
+            @Override
+            public void sendSystemMessage(net.minecraft.network.chat.Component message) {
+                output.append(message.getString()).append("\n");
+            }
+            @Override
+            public boolean acceptsSuccess() { return true; }
+            @Override
+            public boolean acceptsFailure() { return true; }
+            @Override
+            public boolean shouldInformAdmins() { return false; }
+        };
+        
+        net.minecraft.commands.CommandSourceStack sourceStack = server.createCommandSourceStack()
+                .withSource(customSource);
+        
+        try {
+            server.getCommands().performPrefixedCommand(sourceStack, finalCmd);
+        } catch (Exception e) {
+            output.append("Error al ejecutar comando: ").append(e.getMessage());
+        }
+        
+        return output.length() > 0 ? output.toString() : "Comando ejecutado con exito (sin salida)";
+    }
+
+    public com.google.gson.JsonObject serverStatus() {
+        com.google.gson.JsonObject res = new com.google.gson.JsonObject();
+        if (server == null) {
+            res.addProperty("online", false);
+            return res;
+        }
+        res.addProperty("online", true);
+        
+        double tickTime = 0.0;
+        try {
+            long[] times = null;
+            for (java.lang.reflect.Field field : server.getClass().getFields()) {
+                if (field.getType() == long[].class) {
+                    times = (long[]) field.get(server);
+                    break;
+                }
+            }
+            if (times == null) {
+                for (java.lang.reflect.Field field : server.getClass().getDeclaredFields()) {
+                    if (field.getType() == long[].class) {
+                        field.setAccessible(true);
+                        times = (long[]) field.get(server);
+                        break;
+                    }
+                }
+            }
+            if (times == null && server.getClass().getSuperclass() != null) {
+                for (java.lang.reflect.Field field : server.getClass().getSuperclass().getDeclaredFields()) {
+                    if (field.getType() == long[].class) {
+                        field.setAccessible(true);
+                        times = (long[]) field.get(server);
+                        break;
+                    }
+                }
+            }
+            if (times != null && times.length > 0) {
+                long sum = 0;
+                for (long t : times) {
+                    sum += t;
+                }
+                tickTime = (double) sum / times.length * 1.0E-6D;
+            }
+        } catch (Exception ignored) {}
+        
+        double tps = Math.min(20.0, 1000.0 / Math.max(1.0, tickTime));
+        res.addProperty("tps", Double.parseDouble(String.format(java.util.Locale.US, "%.2f", tps)));
+        res.addProperty("tickTime", Double.parseDouble(String.format(java.util.Locale.US, "%.1f", tickTime)));
+        
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory();
+        long totalMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = totalMemory - freeMemory;
+        
+        res.addProperty("maxMemoryMb", maxMemory / 1024 / 1024);
+        res.addProperty("totalMemoryMb", totalMemory / 1024 / 1024);
+        res.addProperty("usedMemoryMb", usedMemory / 1024 / 1024);
+        
+        com.google.gson.JsonArray playersArr = new com.google.gson.JsonArray();
+        for (net.minecraft.server.level.ServerPlayer p : server.getPlayerList().getPlayers()) {
+            com.google.gson.JsonObject pObj = new com.google.gson.JsonObject();
+            pObj.addProperty("name", p.getName().getString());
+            pObj.addProperty("uuid", p.getUUID().toString());
+            pObj.addProperty("dimension", p.level().dimension().identifier().toString());
+            pObj.addProperty("x", (int) p.getX());
+            pObj.addProperty("y", (int) p.getY());
+            pObj.addProperty("z", (int) p.getZ());
+            pObj.addProperty("health", Double.parseDouble(String.format(java.util.Locale.US, "%.1f", p.getHealth())));
+            pObj.addProperty("maxHealth", (int) p.getMaxHealth());
+            pObj.addProperty("ping", p.connection.latency());
+            playersArr.add(pObj);
+        }
+        res.add("players", playersArr);
+        
+        return res;
+    }
 }
