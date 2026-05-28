@@ -444,7 +444,7 @@ public abstract class AbstractContainerScreenMixin {
     }
 
     @Inject(
-            method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At("HEAD"),
             cancellable = true
     )
