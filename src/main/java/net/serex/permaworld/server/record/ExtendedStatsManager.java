@@ -73,7 +73,10 @@ public final class ExtendedStatsManager {
                         if (record.has("metadata") && record.get("metadata").isJsonObject()) {
                             JsonObject meta = record.getAsJsonObject("metadata");
                             if (meta.has("structureId")) {
-                                stats.discoveredStructures.add(meta.get("structureId").getAsString());
+                                String structKey = meta.get("structureId").getAsString();
+                                String coordKey = meta.has("coords") ? meta.get("coords").getAsString() : "?";
+                                // Mismo formato que PlayerPathSampler: structKey@coordKey
+                                stats.discoveredStructures.add(structKey + "@" + coordKey);
                             }
                         }
                     }

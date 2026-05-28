@@ -482,14 +482,24 @@ function renderStats() {
     : '<div class="empty-small">Ningún encantamiento realizado aún.</div>';
 
   const allStructs = state.allStructures || [];
-  const discoveredSet = new Set(ext.discoveredStructures || []);
+  // discoveredStructures es ahora array de {structureId, coords}
+  const discoveredMap = new Map(); // structureId -> coords
+  for (const s of (ext.discoveredStructures || [])) {
+    if (typeof s === "object" && s.structureId) {
+      discoveredMap.set(s.structureId, s.coords || "");
+    } else if (typeof s === "string") {
+      discoveredMap.set(s, ""); // retrocompatibilidad
+    }
+  }
   const structuresHtml = allStructs.length
     ? allStructs.map((structId) => {
-        const isDiscovered = discoveredSet.has(structId);
+        const isDiscovered = discoveredMap.has(structId);
+        const coords = isDiscovered ? discoveredMap.get(structId) : "";
         return `
         <div class="structure-tile ${isDiscovered ? 'found' : 'missing'}" data-struct-id="${structId}">
           <div class="struct-status">${isDiscovered ? '✔' : '🔒'}</div>
           <div class="struct-name">${formatStructureName(structId)}</div>
+          ${coords ? `<div class="struct-coords">${coords}</div>` : ""}
         </div>`;
       }).join("")
     : '<div class="empty-small">No hay estructuras registradas en el servidor.</div>';

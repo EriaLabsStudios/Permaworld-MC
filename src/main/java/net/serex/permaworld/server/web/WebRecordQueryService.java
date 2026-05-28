@@ -814,9 +814,21 @@ public final class WebRecordQueryService {
                 });
         extJson.add("enchantments", enchantmentsArr);
 
-        // Discovered structures
+        // Discovered structures — dedupKey format: "structKey@coords"
         com.google.gson.JsonArray structuresArr = new com.google.gson.JsonArray();
-        ext.discoveredStructures.forEach(structuresArr::add);
+        for (String dedupKey : ext.discoveredStructures) {
+            int atIdx = dedupKey.lastIndexOf('@');
+            com.google.gson.JsonObject sObj = new com.google.gson.JsonObject();
+            if (atIdx >= 0) {
+                sObj.addProperty("structureId", dedupKey.substring(0, atIdx));
+                sObj.addProperty("coords", dedupKey.substring(atIdx + 1));
+            } else {
+                // retrocompatibilidad con claves antiguas sin @coords
+                sObj.addProperty("structureId", dedupKey);
+                sObj.addProperty("coords", "");
+            }
+            structuresArr.add(sObj);
+        }
         extJson.add("discoveredStructures", structuresArr);
 
         payload.add("extendedStats", extJson);

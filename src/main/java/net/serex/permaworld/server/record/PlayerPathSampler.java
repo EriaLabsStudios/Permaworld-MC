@@ -1,9 +1,14 @@
 package net.serex.permaworld.server.record;
 
 import com.google.gson.JsonObject;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.phys.Vec3;
+import net.serex.permaworld.Permaworld;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -62,32 +67,41 @@ public final class PlayerPathSampler {
         if (samplePath) {
             try {
                 net.minecraft.core.BlockPos pos = player.blockPosition();
-                net.minecraft.server.level.ServerLevel world = (net.minecraft.server.level.ServerLevel) player.level();
-                net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = world.registryAccess().get(net.minecraft.core.registries.Registries.STRUCTURE)
-                        .map(reg -> reg.value())
-                        .orElse(null);
-                if (registry != null) {
-                    for (net.minecraft.world.level.levelgen.structure.Structure structure : registry) {
-                        net.minecraft.world.level.levelgen.structure.StructureStart start = world.structureManager().getStructureAt(pos, structure);
-                        if (start != null && start.isValid()) {
-                            net.minecraft.resources.Identifier structureId = registry.getKey(structure);
-                            if (structureId != null) {
-                                net.minecraft.world.level.ChunkPos startPos = start.getChunkPos();
-                                String structKey = structureId.toString();
-                                String coordKey = startPos.toString();
-                                if (!hasDiscoveredStructure(server, player, structKey, coordKey)) {
-                                    JsonObject metadata = new JsonObject();
-                                    metadata.addProperty("structureId", structKey);
-                                    metadata.addProperty("coords", coordKey);
-                                    metadata.addProperty("name", formatStructureName(structKey));
-                                    InventorySnapshotService.appendActivity(server, player, "STRUCTURE_DISCOVERED", metadata);
-                                    ExtendedStatsManager.recordStructureDiscovered(server, player.getUUID(), structKey);
-                                }
-                            }
-                        }
+                if (!(player.level() instanceof ServerLevel world)) return;
+
+                // getAllStructuresAt es más eficiente: solo devuelve las estructuras presentes en ese bloque
+                Map<Structure, it.unimi.dsi.fastutil.longs.LongSet> allStructures =
+                        world.structureManager().getAllStructuresAt(pos);
+
+                for (Map.Entry<Structure, it.unimi.dsi.fastutil.longs.LongSet> entry : allStructures.entrySet()) {
+                    Structure structure = entry.getKey();
+                    StructureStart start = world.structureManager().getStructureAt(pos, structure);
+                    if (start == null || !start.isValid()) continue;
+
+                    Identifier structureId = world.registryAccess()
+                            .lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                            .getKey(structure);
+                    if (structureId == null) continue;
+
+                    String structKey = structureId.toString();
+                    String coordKey = start.getChunkPos().toString();
+
+                    // Chequeo de duplicados via caché en memoria (no re-lee el JSONL cada tick)
+                    ExtendedStatsManager.PlayerStats stats = ExtendedStatsManager.get(server, player.getUUID());
+                    String dedupKey = structKey + "@" + coordKey;
+                    if (!stats.discoveredStructures.contains(dedupKey)) {
+                        JsonObject metadata = new JsonObject();
+                        metadata.addProperty("structureId", structKey);
+                        metadata.addProperty("coords", coordKey);
+                        metadata.addProperty("name", formatStructureName(structKey));
+                        InventorySnapshotService.appendActivity(server, player, "STRUCTURE_DISCOVERED", metadata);
+                        ExtendedStatsManager.recordStructureDiscovered(server, player.getUUID(), dedupKey);
+                        Permaworld.LOGGER.info("[Permaworld] {} ha descubierto la estructura: {}", player.getName().getString(), structKey);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                Permaworld.LOGGER.warn("[Permaworld] Error detectando estructuras para {}: {}", player.getName().getString(), e.getMessage());
+            }
         }
 
         states.put(uuid, new LastPlayerState(dimension, gameMode, alive));
