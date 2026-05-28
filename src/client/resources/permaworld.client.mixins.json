@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.serex.permaworld.mixin.client",
+  "refmap": "permaworld-refmap.json",
   "compatibilityLevel": "JAVA_25",
   "client": [
     "AbstractContainerScreenMixin",
