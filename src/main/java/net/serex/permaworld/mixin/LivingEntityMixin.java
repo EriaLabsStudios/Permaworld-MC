@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
 
-    @Inject(method = "hurt", at = @At("HEAD"))
+    @Inject(method = {"hurt", "damage"}, at = @At("HEAD"))
     private void permaworld$onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity victim = (LivingEntity) (Object) this;
         if (victim.level().isClientSide() || amount <= 0) {
