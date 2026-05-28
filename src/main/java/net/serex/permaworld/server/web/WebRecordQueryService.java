@@ -839,10 +839,9 @@ public final class WebRecordQueryService {
         if (server == null) {
             return array;
         }
-        net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = server.registryAccess().get(net.minecraft.core.registries.Registries.STRUCTURE)
-                .map(reg -> reg.value())
-                .orElse(null);
-        if (registry != null) {
+        try {
+            net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = server.registryAccess()
+                    .lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
             List<String> ids = new ArrayList<>();
             for (net.minecraft.world.level.levelgen.structure.Structure structure : registry) {
                 net.minecraft.resources.Identifier key = registry.getKey(structure);
@@ -852,6 +851,8 @@ public final class WebRecordQueryService {
             }
             ids.sort(String::compareTo);
             ids.forEach(array::add);
+        } catch (Exception e) {
+            net.serex.permaworld.Permaworld.LOGGER.warn("[Permaworld] Error listing all structures: {}", e.getMessage());
         }
         return array;
     }
