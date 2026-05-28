@@ -814,16 +814,108 @@ function showStatus(message, ok) {
   status.textContent = message;
 }
 
+const ITEM_EMOJI = {
+  // Herramientas y armas
+  "minecraft:netherite_sword":    "⚔️",
+  "minecraft:diamond_sword":      "🗡️",
+  "minecraft:iron_sword":         "⚔️",
+  "minecraft:netherite_axe":      "🪓",
+  "minecraft:diamond_axe":        "🪓",
+  "minecraft:bow":                "🏹",
+  "minecraft:crossbow":           "🏹",
+  "minecraft:trident":            "🔱",
+  // Armaduras
+  "minecraft:netherite_chestplate": "🛡️",
+  "minecraft:diamond_chestplate":   "🛡️",
+  "minecraft:iron_chestplate":      "🛡️",
+  "minecraft:netherite_helmet":     "⛑️",
+  "minecraft:diamond_helmet":       "⛑️",
+  "minecraft:leather_boots":        "👟",
+  "minecraft:netherite_boots":      "👟",
+  // Comida
+  "minecraft:cooked_beef":        "🥩",
+  "minecraft:bread":              "🍞",
+  "minecraft:apple":              "🍎",
+  "minecraft:golden_apple":       "🍎",
+  "minecraft:enchanted_golden_apple": "🍎",
+  // XP y magia
+  "minecraft:experience_bottle":  "🍶",
+  "minecraft:emerald":            "💚",
+  "minecraft:enchanting_table":   "🔮",
+  "minecraft:blaze_powder":       "✨",
+  "minecraft:nether_star":        "⭐",
+  "minecraft:end_crystal":        "💎",
+  // Bloques y recursos
+  "minecraft:diamond":            "💎",
+  "minecraft:gold_ingot":         "🪙",
+  "minecraft:iron_ingot":         "🔩",
+  "minecraft:feather":            "🪶",
+  "minecraft:bone":               "🦴",
+  "minecraft:blaze_rod":          "🔥",
+  "minecraft:ender_pearl":        "🌀",
+  // Mobs / criaturas
+  "minecraft:creeper_head":       "💣",
+  "minecraft:skeleton_skull":     "💀",
+  "minecraft:zombie_head":        "🧟",
+  // Otros
+  "minecraft:compass":            "🧭",
+  "minecraft:map":                "🗺️",
+  "minecraft:clock":              "🕐",
+  "minecraft:paper":              "📄",
+  "minecraft:book":               "📖",
+  "minecraft:written_book":       "📖",
+  "minecraft:filled_map":         "🗺️",
+  "minecraft:chest":              "📦",
+  "minecraft:ender_chest":        "📦",
+  "minecraft:shulker_box":        "📦",
+  "minecraft:barrier":            "🚫",
+};
+
+function getItemEmoji(itemId) {
+  if (!itemId) return "❓";
+  const direct = ITEM_EMOJI[itemId];
+  if (direct) return direct;
+  // fallbacks genéricos por categoría
+  if (itemId.includes("sword") || itemId.includes("axe")) return "⚔️";
+  if (itemId.includes("helmet") || itemId.includes("chestplate") || itemId.includes("leggings") || itemId.includes("boots")) return "🛡️";
+  if (itemId.includes("bow")) return "🏹";
+  if (itemId.includes("pickaxe") || itemId.includes("shovel") || itemId.includes("hoe")) return "⛏️";
+  if (itemId.includes("food") || itemId.includes("bread") || itemId.includes("beef") || itemId.includes("pork") || itemId.includes("fish")) return "🍖";
+  if (itemId.includes("apple")) return "🍎";
+  if (itemId.includes("potion")) return "🧪";
+  if (itemId.includes("arrow")) return "🏹";
+  if (itemId.includes("ingot") || itemId.includes("nugget")) return "🪙";
+  if (itemId.includes("block")) return "🧱";
+  if (itemId.includes("log") || itemId.includes("wood") || itemId.includes("plank")) return "🪵";
+  if (itemId.includes("stone") || itemId.includes("cobblestone")) return "🪨";
+  if (itemId.includes("diamond")) return "💎";
+  if (itemId.includes("emerald")) return "💚";
+  if (itemId.includes("gold")) return "🪙";
+  if (itemId.includes("iron")) return "🔩";
+  if (itemId.includes("netherite")) return "🔱";
+  if (itemId.includes("enchant")) return "🔮";
+  if (itemId.includes("experience") || itemId.includes("xp")) return "🍶";
+  if (itemId.includes("skull") || itemId.includes("head")) return "💀";
+  if (itemId.includes("bone")) return "🦴";
+  if (itemId.includes("book")) return "📖";
+  if (itemId.includes("chest") || itemId.includes("shulker")) return "📦";
+  return "📦";
+}
+
 function renderItemIcon(itemId, label) {
+  const emoji = getItemEmoji(itemId);
   if (!itemId) {
-    return `<div class="slot-fallback">${shortLabel(label)}</div>`;
+    return `<div class="slot-fallback">${emoji}</div>`;
   }
-  return `<img src="/api/item-texture?itemId=${encodeURIComponent(itemId)}" alt="${escapeHtml(label || itemId)}" onerror="this.replaceWith(document.createRange().createContextualFragment('<div class=&quot;slot-fallback&quot;>${shortLabel(label || itemId)}</div>'))">`;
+  // Intenta cargar la textura del servidor (solo funciona en cliente).
+  // Si falla (servidor dedicado no tiene texturas), usa el emoji mapeado.
+  return `<img src="/api/item-texture?itemId=${encodeURIComponent(itemId)}" alt="${escapeHtml(label || itemId)}" onerror="this.outerHTML='<div class=\\'slot-fallback emoji\\'>${emoji}</div>'">`;
 }
 
 function shortLabel(value) {
   return escapeHtml((value || "?").split(" ").slice(0, 2).map((part) => part[0] || "").join("").toUpperCase() || "?");
 }
+
 
 function escapeHtml(value) {
   return String(value)

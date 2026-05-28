@@ -229,6 +229,16 @@ body {
     font-size: 10px;
     text-align: center;
 }
+.slot-fallback.emoji {
+    font-size: 22px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+.slot-icon .slot-fallback.emoji,
+.slot-icon.large .slot-fallback.emoji {
+    font-size: 26px;
+}
+
 .advancement-description {
     margin: 10px 0 14px;
 }
