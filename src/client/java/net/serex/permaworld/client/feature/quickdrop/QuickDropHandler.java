@@ -33,6 +33,7 @@ import java.util.Set;
 public final class QuickDropHandler {
 
     private static boolean isQuickDropping = false;
+    private static int autoDropTimeoutTicks = 0;
 
     private QuickDropHandler() {
     }
@@ -43,6 +44,9 @@ public final class QuickDropHandler {
 
     public static void setQuickDropping(boolean value) {
         isQuickDropping = value;
+        if (value) {
+            autoDropTimeoutTicks = 0;
+        }
     }
 
     /**
@@ -68,6 +72,7 @@ public final class QuickDropHandler {
             String blockId = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).toString();
             if (blockId.contains("chest") || blockId.contains("barrel") || blockId.contains("shulker_box")) {
                 isQuickDropping = true;
+                autoDropTimeoutTicks = 0;
                 mc.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, blockHit);
                 DebugLog.log("quickdrop", "Auto-drop al cofre bajo el cursor pos={}", pos);
                 return;
@@ -102,31 +107,60 @@ public final class QuickDropHandler {
     /**
      * Ejecuta el volcado automático al detectar que se abrió un cofre en modo Quick Drop.
      */
-    public static void handleAutoOpenedScreen(AbstractContainerScreen<?> screen) {
-        if (!isQuickDropping) {
-            return;
-        }
-        isQuickDropping = false;
-
+    /**
+     * Tiquea el volcado automático esperando a que se sincronice el cofre.
+     */
+    public static void tickAutoDrop() {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.gameMode == null) {
+        if (mc.player == null) {
+            isQuickDropping = false;
+            autoDropTimeoutTicks = 0;
             return;
         }
 
-        AbstractContainerMenu menu = screen.getMenu();
-        int count = performMerge(mc, player, menu);
-        if (count > 0) {
-            playSatisfyingEffects(mc, player, count);
-            NearbyChestTracker.trackCurrentContainer();
+        if (mc.screen instanceof AbstractContainerScreen<?> screen) {
+            autoDropTimeoutTicks++;
+
+            // Comprobar si el contenedor externo tiene algún ítem ya cargado
+            boolean hasSyncedItems = false;
+            AbstractContainerMenu menu = screen.getMenu();
+            if (menu != null) {
+                net.minecraft.world.entity.player.Inventory playerInv = mc.player.getInventory();
+                for (Slot slot : menu.slots) {
+                    if (slot.container != playerInv && slot.getContainerSlot() >= 0) {
+                        if (!slot.getItem().isEmpty()) {
+                            hasSyncedItems = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Si ya hay ítems o se alcanzó el timeout (10 ticks = 500ms)
+            if (hasSyncedItems || autoDropTimeoutTicks >= 10) {
+                isQuickDropping = false;
+                autoDropTimeoutTicks = 0;
+
+                int count = performMerge(mc, mc.player, menu);
+                if (count > 0) {
+                    playSatisfyingEffects(mc, mc.player, count);
+                    NearbyChestTracker.trackCurrentContainer();
+                } else {
+                    if (mc.gui != null) {
+                        mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
+                    }
+                }
+                mc.player.closeContainer();
+            }
         } else {
-            if (mc.gui != null) {
-                mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
+            autoDropTimeoutTicks++;
+            // Si el cofre no se abre en 40 ticks (2 segundos) por lag extremo o fallo, cancelamos
+            if (autoDropTimeoutTicks >= 40) {
+                isQuickDropping = false;
+                autoDropTimeoutTicks = 0;
+                DebugLog.log("quickdrop", "Timeout esperando pantalla del contenedor.");
             }
         }
-
-        // Cerrar la pantalla automáticamente
-        player.closeContainer();
     }
 
     private static int performMerge(Minecraft mc, LocalPlayer player, AbstractContainerMenu menu) {
@@ -196,6 +230,7 @@ public final class QuickDropHandler {
 
         if (nearestPos != null) {
             isQuickDropping = true;
+            autoDropTimeoutTicks = 0;
             BlockHitResult hitResult = new BlockHitResult(
                     new Vec3(nearestPos.getX() + 0.5, nearestPos.getY() + 0.5, nearestPos.getZ() + 0.5),
                     Direction.UP, nearestPos, false);

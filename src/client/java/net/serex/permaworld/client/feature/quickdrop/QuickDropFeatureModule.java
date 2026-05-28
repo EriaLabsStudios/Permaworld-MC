@@ -19,6 +19,10 @@ public final class QuickDropFeatureModule implements FeatureModule {
         this.poller = new KeyPoller(Keybinds.quickDropStack);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (QuickDropHandler.isQuickDropping()) {
+                QuickDropHandler.tickAutoDrop();
+            }
+
             if (!ConfigManager.get().config().quickDrop.enabled) {
                 return;
             }

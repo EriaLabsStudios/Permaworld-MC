@@ -97,7 +97,6 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         if (QuickDropHandler.isQuickDropping()) {
-            QuickDropHandler.handleAutoOpenedScreen((AbstractContainerScreen<?>) (Object) this);
             return;
         }
 
