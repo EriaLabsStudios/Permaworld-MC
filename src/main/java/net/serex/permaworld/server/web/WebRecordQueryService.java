@@ -840,7 +840,7 @@ public final class WebRecordQueryService {
             return array;
         }
         try {
-            net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = server.registryAccess()
+            net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.Structure> registry = server.overworld().registryAccess()
                     .lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
             List<String> ids = new ArrayList<>();
             for (net.minecraft.world.level.levelgen.structure.Structure structure : registry) {
@@ -852,7 +852,7 @@ public final class WebRecordQueryService {
             ids.sort(String::compareTo);
             ids.forEach(array::add);
         } catch (Exception e) {
-            net.serex.permaworld.Permaworld.LOGGER.warn("[Permaworld] Error listing all structures: {}", e.getMessage());
+            net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error listing all structures", e);
         }
         return array;
     }

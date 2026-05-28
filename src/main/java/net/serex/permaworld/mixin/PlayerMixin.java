@@ -36,9 +36,7 @@ public abstract class PlayerMixin {
 
             try {
                 net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry = serverPlayer.level().getServer().registryAccess()
-                        .get(net.minecraft.core.registries.Registries.ENCHANTMENT)
-                        .map(reg -> reg.value())
-                        .orElse(null);
+                        .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                 
                 if (registry != null) {
                     net.minecraft.world.item.enchantment.ItemEnchantments enchantments = stack.getEnchantments();
