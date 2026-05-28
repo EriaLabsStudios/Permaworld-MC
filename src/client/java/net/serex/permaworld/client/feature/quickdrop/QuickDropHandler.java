@@ -93,7 +93,9 @@ public final class QuickDropHandler {
             playSatisfyingEffects(mc, player, count);
             NearbyChestTracker.trackCurrentContainer();
         } else {
-            player.displayClientMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), true);
+            if (mc.gui != null) {
+                mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
+            }
         }
     }
 
@@ -118,7 +120,9 @@ public final class QuickDropHandler {
             playSatisfyingEffects(mc, player, count);
             NearbyChestTracker.trackCurrentContainer();
         } else {
-            player.displayClientMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), true);
+            if (mc.gui != null) {
+                mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
+            }
         }
 
         // Cerrar la pantalla automáticamente
@@ -166,7 +170,9 @@ public final class QuickDropHandler {
     private static void scanAndDropNearbyChests(Minecraft mc, LocalPlayer player) {
         Map<BlockPos, Set<String>> cache = NearbyChestTracker.getCache();
         if (cache.isEmpty()) {
-            player.displayClientMessage(Component.translatable("permaworld.quickdrop.feedback.no_chest"), true);
+            if (mc.gui != null) {
+                mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_chest"), false);
+            }
             return;
         }
 
@@ -196,7 +202,9 @@ public final class QuickDropHandler {
             mc.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hitResult);
             DebugLog.log("quickdrop", "Auto-drop al cofre cercano pos={}", nearestPos);
         } else {
-            player.displayClientMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), true);
+            if (mc.gui != null) {
+                mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
+            }
         }
     }
 
@@ -224,6 +232,8 @@ public final class QuickDropHandler {
             mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                     SoundEvents.ITEM_PICKUP, 1.1F));
         }
-        player.displayClientMessage(Component.translatable("permaworld.quickdrop.feedback.success", count), true);
+        if (mc.gui != null) {
+            mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.success", count), false);
+        }
     }
 }
