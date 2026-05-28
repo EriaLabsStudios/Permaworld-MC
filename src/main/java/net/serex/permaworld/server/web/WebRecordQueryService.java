@@ -893,37 +893,6 @@ public final class WebRecordQueryService {
         return lines;
     }
 
-    public String executeAdminCommand(String commandLine) {
-        if (server == null) return "Servidor fuera de linea";
-        
-        final String finalCmd = commandLine.startsWith("/") ? commandLine.substring(1) : commandLine;
-        
-        StringBuilder output = new StringBuilder();
-        net.minecraft.commands.CommandSource customSource = new net.minecraft.commands.CommandSource() {
-            @Override
-            public void sendSystemMessage(net.minecraft.network.chat.Component message) {
-                output.append(message.getString()).append("\n");
-            }
-            @Override
-            public boolean acceptsSuccess() { return true; }
-            @Override
-            public boolean acceptsFailure() { return true; }
-            @Override
-            public boolean shouldInformAdmins() { return false; }
-        };
-        
-        net.minecraft.commands.CommandSourceStack sourceStack = server.createCommandSourceStack()
-                .withSource(customSource);
-        
-        try {
-            server.getCommands().performPrefixedCommand(sourceStack, finalCmd);
-        } catch (Exception e) {
-            output.append("Error al ejecutar comando: ").append(e.getMessage());
-        }
-        
-        return output.length() > 0 ? output.toString() : "Comando ejecutado con exito (sin salida)";
-    }
-
     public com.google.gson.JsonObject serverStatus() {
         com.google.gson.JsonObject res = new com.google.gson.JsonObject();
         if (server == null) {

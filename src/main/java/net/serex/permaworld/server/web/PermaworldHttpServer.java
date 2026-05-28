@@ -148,26 +148,6 @@ public final class PermaworldHttpServer {
             return;
         }
 
-        if ("/api/admin/command".equals(path) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            String cmd = queryValue(exchange.getRequestURI().getQuery(), "cmd")
-                    .map(s -> {
-                        try {
-                            return java.net.URLDecoder.decode(s, StandardCharsets.UTF_8);
-                        } catch (Exception e) {
-                            return s;
-                        }
-                    })
-                    .orElse("");
-            if (cmd.isBlank()) {
-                writeStatus(exchange, 400, "Comando vacio");
-                return;
-            }
-            com.google.gson.JsonObject res = new com.google.gson.JsonObject();
-            res.addProperty("output", queryService.executeAdminCommand(cmd));
-            writeJson(exchange, res);
-            return;
-        }
-
         if ("/api/admin/status".equals(path)) {
             writeJson(exchange, queryService.serverStatus());
             return;

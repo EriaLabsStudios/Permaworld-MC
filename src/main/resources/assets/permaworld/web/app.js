@@ -255,17 +255,12 @@ async function loadAdminConsole() {
   recordList.innerHTML = `
     <div class="admin-dashboard">
       <!-- Left Side: Terminal -->
-      <div class="admin-console-panel">
+      <div class="admin-console-panel" style="height: 480px;">
         <div class="terminal-header">
           <span class="terminal-title">⌨ Consola de Logs del Servidor</span>
           <button class="mc-button font-small" id="refreshLogsBtn" style="padding: 2px 8px;">↻ Recargar Logs</button>
         </div>
-        <div class="terminal-body" id="logTerminal">Cargando logs del servidor...</div>
-        <form class="terminal-input-container" id="terminalForm">
-          <span class="terminal-prompt">&gt;</span>
-          <input type="text" id="terminalInput" class="terminal-input" placeholder="Escribe un comando de Minecraft (ej: /tps, /say Hola) y pulsa Enter..." autocomplete="off">
-          <button type="submit" class="mc-button font-small" style="padding: 2px 12px;">Enviar</button>
-        </form>
+        <div class="terminal-body" id="logTerminal" style="height: calc(100% - 38px);">Cargando logs del servidor...</div>
       </div>
       
       <!-- Right Side: Performance -->
@@ -285,16 +280,6 @@ async function loadAdminConsole() {
             <div class="perf-value" id="perfPlayersCount">--</div>
           </div>
         </div>
-        
-        <div style="font-weight: bold; margin: 18px 0 8px; font-size: 14px; text-transform: uppercase; color: var(--gold-1); text-shadow: 1px 1px 0 #000; text-align: left;">Acciones Rápidas</div>
-        <div class="quick-actions-grid">
-          <button class="mc-button action-btn" data-cmd="time set day">☀ Día</button>
-          <button class="mc-button action-btn" data-cmd="time set night">🌙 Noche</button>
-          <button class="mc-button action-btn" data-cmd="weather clear">☁ Despejar</button>
-          <button class="mc-button action-btn" data-cmd="weather rain">🌧 Lluvia</button>
-          <button class="mc-button action-btn" data-cmd="save-all">💾 Guardar</button>
-          <button class="mc-button action-btn" data-cmd="whitelist list">📋 Whitelist</button>
-        </div>
       </div>
     </div>`;
 
@@ -308,29 +293,6 @@ async function loadAdminConsole() {
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => reloadLogs());
   }
-
-  const form = document.querySelector("#terminalForm");
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const input = document.querySelector("#terminalInput");
-      if (!input) return;
-      const cmd = input.value.trim();
-      if (!cmd) return;
-      input.value = "";
-      await sendCommand(cmd);
-    });
-  }
-
-  const quickButtons = document.querySelectorAll(".action-btn");
-  quickButtons.forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const cmd = btn.dataset.cmd;
-      if (cmd) {
-        await sendCommand(cmd);
-      }
-    });
-  });
 
   await reloadLogs();
   await reloadStatus();
@@ -425,67 +387,12 @@ async function reloadStatus() {
               <span style="font-size: 10px; margin-left: 6px;">${p.health}/${p.maxHealth}</span>
             </div>
           </div>
-          <div class="player-item-actions">
-            <button class="mc-button font-small action-btn-inline" data-cmd="effect give ${p.name} minecraft:instant_health">Curar</button>
-            <button class="mc-button font-small action-btn-inline" data-cmd="gamemode creative ${p.name}">Creativo</button>
-            <button class="mc-button font-small action-btn-inline" data-cmd="gamemode survival ${p.name}">Superv.</button>
-            <button class="mc-button font-small action-btn-inline error" data-cmd="kick ${p.name}">Kick</button>
-          </div>
         `;
         playersListEl.appendChild(item);
       }
-
-      const inlineButtons = playersListEl.querySelectorAll(".action-btn-inline");
-      inlineButtons.forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const cmd = btn.dataset.cmd;
-          if (cmd) {
-            await sendCommand(cmd);
-          }
-        });
-      });
     }
   } catch (e) {
     console.error("Failed to load status:", e);
-  }
-}
-
-async function sendCommand(cmd) {
-  const terminal = document.querySelector("#logTerminal");
-  if (!terminal) return;
-
-  const userLine = document.createElement("div");
-  userLine.className = "terminal-line command";
-  userLine.textContent = `> ${cmd}`;
-  terminal.appendChild(userLine);
-  terminal.scrollTop = terminal.scrollHeight;
-
-  try {
-    const res = await loadJson(`/api/admin/command?admin=${encodeURIComponent(state.selectedAdmin)}&cmd=${encodeURIComponent(cmd)}`, {
-      method: "POST"
-    });
-
-    const responseLines = res.output.split("\n");
-    for (const line of responseLines) {
-      if (!line.trim()) continue;
-      const respLine = document.createElement("div");
-      respLine.className = "terminal-line response";
-      respLine.textContent = line;
-      terminal.appendChild(respLine);
-    }
-    terminal.scrollTop = terminal.scrollHeight;
-
-    setTimeout(() => {
-      reloadLogs();
-      reloadStatus();
-    }, 400);
-
-  } catch (e) {
-    const errLine = document.createElement("div");
-    errLine.className = "terminal-line system error";
-    errLine.textContent = `Error al ejecutar comando: ${e.message}`;
-    terminal.appendChild(errLine);
-    terminal.scrollTop = terminal.scrollHeight;
   }
 }
 
