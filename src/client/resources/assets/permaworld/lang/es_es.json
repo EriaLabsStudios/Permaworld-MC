@@ -28,6 +28,7 @@
   "permaworld.config.packet_delay": "Delay paquetes: %s ms",
   "permaworld.config.sort.enabled": "Ordenar inventario: %s",
   "permaworld.config.quick_drop.enabled": "Deposito rapido: %s",
+  "permaworld.config.quick_drop.show_button": "Mostrar boton de deposito rapido: %s",
   "permaworld.config.quick_drop.radius": "Radio deposito rapido: %s bloques",
   "permaworld.config.slot_lock.enabled": "Bloqueo de slots: %s",
   "permaworld.config.slot_lock.protect_pickup": "Auto-rechazar pickups incorrectos: %s",
@@ -95,5 +96,9 @@
   "permaworld.resourcepack.profile.name_required": "Escribe un nombre de perfil",
   "permaworld.resourcepack.profile.saved": "Perfil guardado",
   "permaworld.resourcepack.profile.applied": "Perfil aplicado",
-  "permaworld.resourcepack.profile.deleted": "Perfil borrado"
+  "permaworld.resourcepack.profile.deleted": "Perfil borrado",
+  "permaworld.quickdrop.tooltip": "Guardar automáticamente objetos coincidentes en el contenedor",
+  "permaworld.quickdrop.feedback.no_items": "No hay objetos compatibles para depositar",
+  "permaworld.quickdrop.feedback.no_chest": "No hay cofres abiertos recientemente en el radio",
+  "permaworld.quickdrop.feedback.success": "§a✔ §f¡Se guardaron §7%s§f objetos en los cofres!"
 }

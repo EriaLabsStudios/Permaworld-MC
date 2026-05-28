@@ -106,6 +106,11 @@ public final class PermaworldConfigScreen extends Screen {
                 value -> ConfigManager.get().config().quickDrop.enabled = value);
         row += 24;
 
+        addControl(x, row, "permaworld.config.quick_drop.show_button",
+                () -> ConfigManager.get().config().quickDrop.showButton,
+                value -> ConfigManager.get().config().quickDrop.showButton = value);
+        row += 24;
+
         addNumberControl(x, row, "permaworld.config.quick_drop.radius",
                 () -> ConfigManager.get().config().quickDrop.radius,
                 value -> ConfigManager.get().config().quickDrop.radius = clamp(value, 1, 32),

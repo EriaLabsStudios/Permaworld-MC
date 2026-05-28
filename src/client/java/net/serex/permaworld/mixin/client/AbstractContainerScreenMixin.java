@@ -20,6 +20,7 @@ import net.serex.permaworld.client.feature.slotlock.SlotMarkRenderer;
 import net.serex.permaworld.client.feature.sort.InventorySorter;
 import net.serex.permaworld.client.feature.sort.SortFeedback;
 import net.serex.permaworld.client.feature.sort.SortMode;
+import net.serex.permaworld.client.feature.quickdrop.QuickDropHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Shadow;
@@ -60,6 +61,9 @@ public abstract class AbstractContainerScreenMixin {
     private Button permaworld$sortByCategoryButton;
 
     @Unique
+    private Button permaworld$quickDropButton;
+
+    @Unique
     private final Set<Integer> permaworld$dragProcessedSlots = new HashSet<>();
 
     @Unique
@@ -92,8 +96,16 @@ public abstract class AbstractContainerScreenMixin {
             return;
         }
 
+        if (QuickDropHandler.isQuickDropping()) {
+            QuickDropHandler.handleAutoOpenedScreen((AbstractContainerScreen<?>) (Object) this);
+            return;
+        }
+
         if (ConfigManager.get().config().sort.enabled) {
             addSortButtons();
+        }
+        if (ConfigManager.get().config().quickDrop.enabled && ConfigManager.get().config().quickDrop.showButton) {
+            addQuickDropButton();
         }
         if (ConfigManager.get().config().slotLock.enabled) {
             String screenName = this.getClass().getSimpleName();
@@ -185,6 +197,26 @@ public abstract class AbstractContainerScreenMixin {
                 .build();
         ((ScreenAccessor) this).permaworld$addRenderableWidget(button);
         return button;
+    }
+
+    @Unique
+    private void addQuickDropButton() {
+        PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+        int buttonSize = Math.max(8, sort.buttonSize);
+        int gap = Math.max(0, sort.buttonGap);
+        int totalWidth = buttonSize * 3 + gap * 2;
+        
+        int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX - buttonSize - gap;
+        if (!ConfigManager.get().config().sort.enabled) {
+            x = this.leftPos + this.imageWidth - buttonSize + sort.buttonOffsetX;
+        }
+        int y = sortButtonY(buttonSize, sort);
+
+        permaworld$quickDropButton = Button.builder(Component.literal("⤓"), ignored -> QuickDropHandler.executeFromScreen())
+                .bounds(x, y, buttonSize, buttonSize)
+                .tooltip(Tooltip.create(Component.translatable("permaworld.quickdrop.tooltip")))
+                .build();
+        ((ScreenAccessor) this).permaworld$addRenderableWidget(permaworld$quickDropButton);
     }
 
     @Inject(
@@ -487,6 +519,24 @@ public abstract class AbstractContainerScreenMixin {
             if (permaworld$sortByCategoryButton != null) {
                 permaworld$sortByCategoryButton.setX(x + (buttonSize + gap) * 2);
                 permaworld$sortByCategoryButton.setY(y);
+            }
+        }
+
+        // 3. Reposition Quick Drop Button
+        if (ConfigManager.get().config().quickDrop.enabled && ConfigManager.get().config().quickDrop.showButton) {
+            PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+            int buttonSize = Math.max(8, sort.buttonSize);
+            int gap = Math.max(0, sort.buttonGap);
+            int totalWidth = buttonSize * 3 + gap * 2;
+            int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX - buttonSize - gap;
+            if (!ConfigManager.get().config().sort.enabled) {
+                x = this.leftPos + this.imageWidth - buttonSize + sort.buttonOffsetX;
+            }
+            int y = sortButtonY(buttonSize, sort);
+
+            if (permaworld$quickDropButton != null) {
+                permaworld$quickDropButton.setX(x);
+                permaworld$quickDropButton.setY(y);
             }
         }
     }

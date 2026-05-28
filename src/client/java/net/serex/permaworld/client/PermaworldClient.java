@@ -8,6 +8,7 @@ import net.serex.permaworld.client.feature.harvest.RightClickHarvest;
 import net.serex.permaworld.client.feature.slotlock.SlotLockFeatureModule;
 import net.serex.permaworld.client.feature.sort.SortFeatureModule;
 import net.serex.permaworld.client.feature.trader.TraderQuickBuyFeatureModule;
+import net.serex.permaworld.client.feature.quickdrop.QuickDropFeatureModule;
 import net.serex.permaworld.client.keybind.Keybinds;
 
 import java.util.ArrayList;
@@ -50,6 +51,6 @@ public class PermaworldClient implements ClientModInitializer {
         MODULES.add(new SlotLockFeatureModule());
         MODULES.add(new RightClickHarvest());
         MODULES.add(new TraderQuickBuyFeatureModule());
-        // Las features se irán enganchando aquí en milestones siguientes.
+        MODULES.add(new QuickDropFeatureModule());
     }
 }

@@ -28,6 +28,7 @@
   "permaworld.config.packet_delay": "Packet delay: %s ms",
   "permaworld.config.sort.enabled": "Inventory sort: %s",
   "permaworld.config.quick_drop.enabled": "Quick drop: %s",
+  "permaworld.config.quick_drop.show_button": "Show Quick Drop button: %s",
   "permaworld.config.quick_drop.radius": "Quick drop radius: %s blocks",
   "permaworld.config.slot_lock.enabled": "Slot lock: %s",
   "permaworld.config.slot_lock.protect_pickup": "Auto-reject wrong pickups: %s",
@@ -95,5 +96,9 @@
   "permaworld.resourcepack.profile.name_required": "Enter a profile name",
   "permaworld.resourcepack.profile.saved": "Profile saved",
   "permaworld.resourcepack.profile.applied": "Profile applied",
-  "permaworld.resourcepack.profile.deleted": "Profile deleted"
+  "permaworld.resourcepack.profile.deleted": "Profile deleted",
+  "permaworld.quickdrop.tooltip": "Quick drop matching items into container",
+  "permaworld.quickdrop.feedback.no_items": "No matching items to drop",
+  "permaworld.quickdrop.feedback.no_chest": "No opened chests nearby in radius",
+  "permaworld.quickdrop.feedback.success": "§a✔ §fDropped §7%s§f items into chests!"
 }

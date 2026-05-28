@@ -53,6 +53,7 @@ public class PermaworldConfig {
 
     public static class QuickDropConfig {
         public boolean enabled = true;
+        public boolean showButton = true;
         public int radius = 8;
     }
 
