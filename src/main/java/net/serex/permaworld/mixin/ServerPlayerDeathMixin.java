@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerPlayer.class)
 public abstract class ServerPlayerDeathMixin {
 
-    @Inject(method = {"die", "method_6091", "m_6667_"}, at = @At("HEAD"))
+    @Inject(method = "die", at = @At("HEAD"))
     private void permaworld$captureDeathInventory(DamageSource damageSource, CallbackInfo ci) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         InventorySnapshotService.appendSnapshot(player.level().getServer(), player, "DEATH");

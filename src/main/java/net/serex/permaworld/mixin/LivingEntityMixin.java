@@ -1,5 +1,6 @@
 package net.serex.permaworld.mixin;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -12,10 +13,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
 
-    @Inject(method = {"hurt", "damage", "method_6078", "m_6469_"}, at = @At("HEAD"))
-    private void permaworld$onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+    // MC 26.1.x: hurt() was renamed to hurtServer(ServerLevel, DamageSource, float)
+    @Inject(method = "hurtServer", at = @At("HEAD"))
+    private void permaworld$onHurt(ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity victim = (LivingEntity) (Object) this;
-        if (victim.level().isClientSide() || amount <= 0) {
+        if (amount <= 0) {
             return;
         }
 
@@ -28,11 +30,11 @@ public abstract class LivingEntityMixin {
                 sourceName = formatSourceMsgId(source.getMsgId());
             }
 
-            ExtendedStatsManager.recordDamageTaken(player.level().getServer(), player.getUUID(), amount, sourceName);
+            ExtendedStatsManager.recordDamageTaken(level.getServer(), player.getUUID(), amount, sourceName);
 
             // Registrar daño por caída
             if (source.getMsgId() != null && source.getMsgId().equals("fall")) {
-                ExtendedStatsManager.recordFall(player.level().getServer(), player.getUUID(), 0, amount);
+                ExtendedStatsManager.recordFall(level.getServer(), player.getUUID(), 0, amount);
             }
         }
 
@@ -42,11 +44,12 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    @Inject(method = {"causeFallDamage", "method_6011", "m_142535_"}, at = @At("HEAD"))
-    private void permaworld$onFallDistance(float fallDistance, float damageMultiplier, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
+    // MC 26.1.x: causeFallDamage(double fallDistance, float multiplier, DamageSource)
+    @Inject(method = "causeFallDamage", at = @At("HEAD"))
+    private void permaworld$onFallDistance(double fallDistance, float damageMultiplier, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity instanceof ServerPlayer player && fallDistance > 0) {
-            ExtendedStatsManager.recordFall(player.level().getServer(), player.getUUID(), fallDistance, 0);
+            ExtendedStatsManager.recordFall(player.level().getServer(), player.getUUID(), (float) fallDistance, 0);
         }
     }
 
