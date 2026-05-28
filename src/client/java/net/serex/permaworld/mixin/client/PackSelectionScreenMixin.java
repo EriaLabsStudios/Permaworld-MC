@@ -124,20 +124,43 @@ public abstract class PackSelectionScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void permaworld$addProfileControls(CallbackInfo ci) {
+        // Remove StringWidget and MultiLineTextWidget title/info to fully clear background
+        ScreenAccessor screenAccessor = (ScreenAccessor) this;
+        screenAccessor.permaworld$getRenderables().removeIf(r -> {
+            String name = r.getClass().getSimpleName();
+            return name.contains("StringWidget") || name.contains("MultiLineTextWidget") || name.contains("TextWidget");
+        });
+        screenAccessor.permaworld$getChildren().removeIf(c -> {
+            String name = c.getClass().getSimpleName();
+            return name.contains("StringWidget") || name.contains("MultiLineTextWidget") || name.contains("TextWidget");
+        });
+
+        if (availablePackList != null && selectedPackList != null) {
+            int targetY = 40;
+            int diffY = targetY - availablePackList.getY();
+            if (diffY > 0) {
+                availablePackList.setY(targetY);
+                availablePackList.setHeight(availablePackList.getHeight() - diffY);
+                selectedPackList.setY(targetY);
+                selectedPackList.setHeight(selectedPackList.getHeight() - diffY);
+            }
+        }
         if (!ConfigManager.get().config().resourcePack.enabled) {
             return;
         }
         permaworld$fileManager = new ResourcePackFileManager(packDir);
         permaworld$restoreActiveProfile();
 
-        int listLeft = availablePackList.getRowLeft();
-        int panelX = 24;
-        int panelWidth = Math.max(176, Math.min(430, listLeft - 48));
-        int y = availablePackList.getY() + 34;
-        int buttonWidth = Math.min(86, Math.max(64, panelWidth / 4));
-        int inputWidth = panelWidth - buttonWidth - 8;
+        boolean isSmallScreen = this.width < 520;
+        int panelX = 15;
+        int rowY = 10;
 
-        permaworld$profileNameBox = new EditBox(this.font, panelX, y, inputWidth, 20,
+        int inputWidth = isSmallScreen ? 80 : 110;
+        int saveWidth = isSmallScreen ? 35 : 45;
+        int comboWidth = isSmallScreen ? 85 : 110;
+        int applyWidth = isSmallScreen ? 35 : 45;
+
+        permaworld$profileNameBox = new EditBox(this.font, panelX, rowY, inputWidth, 20,
                 Component.translatable("permaworld.resourcepack.profile.name"));
         permaworld$profileNameBox.setHint(Component.translatable("permaworld.resourcepack.profile.name"));
         permaworld$profileNameBox.setMaxLength(48);
@@ -148,57 +171,61 @@ public abstract class PackSelectionScreenMixin extends Screen {
         ((ScreenAccessor) this).permaworld$addRenderableWidget(Button.builder(
                 Component.translatable("permaworld.resourcepack.profile.save"),
                 button -> permaworld$saveProfile()
-        ).bounds(panelX + inputWidth + 8, y, buttonWidth, 20).build());
+        ).bounds(panelX + inputWidth + 5, rowY, saveWidth, 20).build());
 
-        int comboY = y + 30;
-        int applyWidth = Math.min(92, buttonWidth + 14);
-        int comboWidth = panelWidth - applyWidth - 8;
+        int comboX = panelX + inputWidth + 5 + saveWidth + 10;
 
         permaworld$comboButton = Button.builder(
                 permaworld$comboLabel(),
                 button -> permaworld$toggleDropdown()
-        ).bounds(panelX, comboY, comboWidth, 20).build();
+        ).bounds(comboX, rowY, comboWidth, 20).build();
         ((ScreenAccessor) this).permaworld$addRenderableWidget(permaworld$comboButton);
 
         permaworld$applyButton = Button.builder(Component.translatable("permaworld.resourcepack.profile.apply"),
                 button -> permaworld$applyProfile()
-        ).bounds(panelX + comboWidth + 8, comboY, applyWidth, 20).build();
+        ).bounds(comboX + comboWidth + 5, rowY, applyWidth, 20).build();
         permaworld$applyButton.active = permaworld$profiles.find(permaworld$selectedProfile) != null;
         ((ScreenAccessor) this).permaworld$addRenderableWidget(permaworld$applyButton);
 
         permaworld$dropdownButtons.clear();
-        permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
+        permaworld$addProfileDropdown(comboX, rowY + 22, comboWidth);
         permaworld$updateDropdownVisibility();
 
         if (this.search != null) {
-            this.search.setX(this.width - 220);
-            this.search.setY(20);
+            int searchWidth = isSmallScreen ? 110 : 150;
+            this.search.setWidth(searchWidth);
+            this.search.setX(this.width - 15 - searchWidth);
+            this.search.setY(10);
         }
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float tickDelta) {
+        // Draw glassmorphic header banner background FIRST so it stays in the background
+        extractor.fill(0, 0, this.width, 40, 0xAA0B0B10);
+        extractor.fill(0, 40, this.width, 41, 0x44FFFFFF);
+
         super.extractRenderState(extractor, mouseX, mouseY, tickDelta);
+        
+        boolean isSmallScreen = this.width < 520;
         if (this.search != null) {
-            this.search.setX(this.width - 220);
-            this.search.setY(20);
+            int searchWidth = isSmallScreen ? 110 : 150;
+            this.search.setWidth(searchWidth);
+            this.search.setX(this.width - 15 - searchWidth);
+            this.search.setY(10);
         }
         if (availablePackList == null || selectedPackList == null) {
             return;
         }
 
-        int panelX = 24;
-        int panelWidth = Math.max(176, Math.min(430, availablePackList.getRowLeft() - 48));
-        int titleY = permaworld$profileNameBox == null ? Math.max(availablePackList.getY(), 72)
-                : Math.max(8, permaworld$profileNameBox.getY() - 34);
-        extractor.fill(panelX - 2, titleY - 4, panelX + panelWidth, titleY + 25, 0x88000000);
-        extractor.outline(panelX - 2, titleY - 4, panelWidth + 2, 29, 0x55FFFFFF);
-        extractor.text(this.font, Component.translatable("permaworld.resourcepack.profile.title"), panelX, titleY, 0xFFFFFFFF);
-        extractor.text(this.font, permaworld$activeProfileLabel(), panelX, titleY + 12, 0xFFA0FFAA);
+        // Profiles Active Label
+        extractor.text(this.font, permaworld$activeProfileLabel(), 15, 2, 0xFFA0FFAA);
+
+        // Status Text
         if (permaworld$status != null && !permaworld$status.getString().isBlank()) {
-            int statusY = permaworld$profileNameBox == null ? titleY + 106 : permaworld$profileNameBox.getY() + 58;
-            extractor.textWithWordWrap(this.font, permaworld$status, panelX, statusY, panelWidth, 0xFFE0E0E0);
+            extractor.centeredText(this.font, permaworld$status, this.width / 2, 2, 0xFFE0E0E0);
         }
+
         if (permaworld$isDraggingPack()) {
             extractor.text(this.font, Component.translatable("permaworld.resourcepack.dragging"),
                     selectedPackList.getRowLeft(), selectedPackList.getY() - 12, 0xFFFFFF99);
@@ -317,16 +344,15 @@ public abstract class PackSelectionScreenMixin extends Screen {
         }
         permaworld$dropdownButtons.clear();
 
-        int listLeft = availablePackList.getRowLeft();
-        int panelX = 24;
-        int panelWidth = Math.max(176, Math.min(430, listLeft - 48));
-        int y = availablePackList.getY() + 34;
-        int comboY = y + 30;
-        int buttonWidth = Math.min(86, Math.max(64, panelWidth / 4));
-        int applyWidth = Math.min(92, buttonWidth + 14);
-        int comboWidth = panelWidth - applyWidth - 8;
+        boolean isSmallScreen = this.width < 520;
+        int panelX = 15;
+        int inputWidth = isSmallScreen ? 80 : 110;
+        int saveWidth = isSmallScreen ? 35 : 45;
+        int comboX = panelX + inputWidth + 5 + saveWidth + 10;
+        int comboWidth = isSmallScreen ? 85 : 110;
+        int comboY = 10;
 
-        permaworld$addProfileDropdown(panelX, comboY + 22, comboWidth);
+        permaworld$addProfileDropdown(comboX, comboY + 22, comboWidth);
         permaworld$updateDropdownVisibility();
 
         if (permaworld$comboButton != null) {
@@ -340,9 +366,9 @@ public abstract class PackSelectionScreenMixin extends Screen {
     @Unique
     private Component permaworld$comboLabel() {
         if (permaworld$selectedProfile.isBlank()) {
-            return Component.translatable("permaworld.resourcepack.profile.select");
+            return Component.literal(Component.translatable("permaworld.resourcepack.profile.select").getString() + " ▼");
         }
-        return Component.literal(permaworld$trim(permaworld$selectedProfile, 28));
+        return Component.literal(permaworld$trim(permaworld$selectedProfile, 20) + " ▼");
     }
 
     @Unique

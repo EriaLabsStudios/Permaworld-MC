@@ -12,4 +12,10 @@ public interface ScreenAccessor {
 
     @Invoker("addRenderableWidget")
     <T extends GuiEventListener & Renderable & NarratableEntry> T permaworld$addRenderableWidget(T widget);
+
+    @org.spongepowered.asm.mixin.gen.Accessor("renderables")
+    java.util.List<Renderable> permaworld$getRenderables();
+
+    @org.spongepowered.asm.mixin.gen.Accessor("children")
+    java.util.List<GuiEventListener> permaworld$getChildren();
 }
