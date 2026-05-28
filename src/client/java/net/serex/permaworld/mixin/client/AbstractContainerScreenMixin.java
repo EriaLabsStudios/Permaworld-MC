@@ -444,6 +444,17 @@ public abstract class AbstractContainerScreenMixin {
     }
 
     @Inject(
+            method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void permaworld$quickdrop$cancelRender(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        if (QuickDropHandler.isQuickDropping()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(
             method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
             at = @At("TAIL")
     )

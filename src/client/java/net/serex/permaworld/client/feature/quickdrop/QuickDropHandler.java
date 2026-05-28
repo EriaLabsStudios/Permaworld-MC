@@ -101,6 +101,7 @@ public final class QuickDropHandler {
             if (mc.gui != null) {
                 mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
             }
+            playFailEffects(mc);
         }
     }
 
@@ -149,6 +150,7 @@ public final class QuickDropHandler {
                     if (mc.gui != null) {
                         mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
                     }
+                    playFailEffects(mc);
                 }
                 mc.player.closeContainer();
             }
@@ -207,6 +209,7 @@ public final class QuickDropHandler {
             if (mc.gui != null) {
                 mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_chest"), false);
             }
+            playFailEffects(mc);
             return;
         }
 
@@ -240,6 +243,7 @@ public final class QuickDropHandler {
             if (mc.gui != null) {
                 mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.no_items"), false);
             }
+            playFailEffects(mc);
         }
     }
 
@@ -269,6 +273,13 @@ public final class QuickDropHandler {
         }
         if (mc.gui != null) {
             mc.gui.setOverlayMessage(Component.translatable("permaworld.quickdrop.feedback.success", count), false);
+        }
+    }
+
+    private static void playFailEffects(Minecraft mc) {
+        if (mc.getSoundManager() != null) {
+            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                    SoundEvents.CHEST_LOCKED, 0.85F));
         }
     }
 }
