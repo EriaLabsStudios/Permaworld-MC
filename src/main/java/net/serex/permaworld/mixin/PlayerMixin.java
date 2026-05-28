@@ -35,19 +35,18 @@ public abstract class PlayerMixin {
             ExtendedStatsManager.recordEnchantedItem(serverPlayer.level().getServer(), serverPlayer.getUUID());
 
             try {
-                net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry = serverPlayer.level().getServer().registryAccess()
-                        .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-                
-                if (registry != null) {
-                    net.minecraft.world.item.enchantment.ItemEnchantments enchantments = stack.getEnchantments();
-                    for (java.util.Map.Entry<net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment>, Integer> entry : enchantments.entrySet()) {
-                        net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> holder = entry.getKey();
-                        net.minecraft.resources.Identifier id = registry.getKey(holder.value());
-                        String name = id != null ? id.toString() : "unknown";
-                        ExtendedStatsManager.recordEnchantment(serverPlayer.level().getServer(), serverPlayer.getUUID(), name);
-                    }
+                net.minecraft.world.item.enchantment.ItemEnchantments enchantments = stack.getEnchantments();
+                for (java.util.Map.Entry<net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment>, Integer> entry : enchantments.entrySet()) {
+                    net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> holder = entry.getKey();
+                    net.minecraft.resources.Identifier id = holder.unwrapKey()
+                            .map(net.minecraft.resources.ResourceKey::identifier)
+                            .orElse(null);
+                    String name = id != null ? id.toString() : "unknown";
+                    ExtendedStatsManager.recordEnchantment(serverPlayer.level().getServer(), serverPlayer.getUUID(), name);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error recording enchantment", e);
+            }
         }
     }
 }
