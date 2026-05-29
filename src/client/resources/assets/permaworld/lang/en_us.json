@@ -103,6 +103,9 @@
   "permaworld.quickdrop.feedback.no_items": "No matching items to drop",
   "permaworld.quickdrop.feedback.no_chest": "No opened chests nearby in radius",
   "permaworld.quickdrop.feedback.success": "§a✔ §fDropped §7%s§f items into chests!",
-  "permaworld.harvest.no_seeds": "§c⚠ §fNo seeds to replant..."
+  "permaworld.harvest.no_seeds": "§c⚠ §fNo seeds to replant...",
+  "permaworld.harvest.tooltip.sickle": "§2🌾 Permaworld Sickle",
+  "permaworld.harvest.tooltip.radius": "  §7• Harvest radius: §e%s",
+  "permaworld.harvest.tooltip.bonemeal": "  §7• Growth in area: §aSickle + Bone Meal"
 }
 

@@ -57,6 +57,26 @@ public final class RightClickHarvest implements FeatureModule {
     @Override
     public void onClientInit() {
         UseBlockCallback.EVENT.register(RightClickHarvest::onUseBlock);
+
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> {
+            if (!ConfigManager.get().config().harvest.enabled) {
+                return;
+            }
+            if (stack == null || stack.isEmpty()) {
+                return;
+            }
+            Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            HoeMaterial material = HOE_MATERIALS.get(itemId.toString());
+            if (material != null) {
+                int size = areaFor(material, ConfigManager.get().config().harvest);
+                lines.add(net.minecraft.network.chat.Component.empty()); // Spacer
+                lines.add(net.minecraft.network.chat.Component.translatable("permaworld.harvest.tooltip.sickle"));
+                lines.add(net.minecraft.network.chat.Component.translatable("permaworld.harvest.tooltip.radius", size + "x" + size));
+                if (ConfigManager.get().config().harvest.bonemealArea) {
+                    lines.add(net.minecraft.network.chat.Component.translatable("permaworld.harvest.tooltip.bonemeal"));
+                }
+            }
+        });
     }
 
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {

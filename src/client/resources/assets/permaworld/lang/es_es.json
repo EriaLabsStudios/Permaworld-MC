@@ -103,6 +103,9 @@
   "permaworld.quickdrop.feedback.no_items": "No hay objetos compatibles para depositar",
   "permaworld.quickdrop.feedback.no_chest": "No hay cofres abiertos recientemente en el radio",
   "permaworld.quickdrop.feedback.success": "§a✔ §f¡Se guardaron §7%s§f objetos en los cofres!",
-  "permaworld.harvest.no_seeds": "§c⚠ §fSin semillas para replantar..."
+  "permaworld.harvest.no_seeds": "§c⚠ §fSin semillas para replantar...",
+  "permaworld.harvest.tooltip.sickle": "§2🌾 Hoz Permaworld",
+  "permaworld.harvest.tooltip.radius": "  §7• Cosecha en área: §e%s",
+  "permaworld.harvest.tooltip.bonemeal": "  §7• Crecimiento en área: §aHoz + Polvo"
 }
 
