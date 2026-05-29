@@ -70,6 +70,29 @@ public final class RightClickHarvest implements FeatureModule {
         if (local == null || gameMode == null || player != local) {
             return InteractionResult.PASS;
         }
+
+        ItemStack mainHandStack = local.getMainHandItem();
+        ItemStack offHandStack = local.getOffhandItem();
+        String mainHandId = BuiltInRegistries.ITEM.getKey(mainHandStack.getItem()).toString();
+
+        if ("minecraft:bone_meal".equals(mainHandId)) {
+            HoeArea offhandHoeArea = hoeArea(offHandStack, ConfigManager.get().config().harvest);
+            if (offhandHoeArea != null) {
+                BlockPos pos = hit.getBlockPos();
+                List<BlockPos> targets = bonemealableBlocksInArea(level, pos, offhandHoeArea.size());
+                if (!targets.isEmpty()) {
+                    DebugLog.log("harvest", "Polvo de hueso en área (tamaño {}) en {} con hoz en mano secundaria.", offhandHoeArea.size(), pos);
+                    for (BlockPos target : targets) {
+                        if (local.getMainHandItem().isEmpty() || !BuiltInRegistries.ITEM.getKey(local.getMainHandItem().getItem()).toString().equals("minecraft:bone_meal")) {
+                            break;
+                        }
+                        gameMode.useItemOn(local, InteractionHand.MAIN_HAND, hitFor(target, hit));
+                    }
+                    return InteractionResult.SUCCESS;
+                }
+            }
+        }
+
         HoeArea hoeArea = hoeArea(local.getMainHandItem(), ConfigManager.get().config().harvest);
         if (hoeArea == null) {
             DebugLog.log("harvest", "Cosecha ignorada: no hay hoz compatible en mano principal.");
@@ -188,6 +211,24 @@ public final class RightClickHarvest implements FeatureModule {
         return Math.max(1, Math.min(8, value));
     }
 
+    private static List<BlockPos> bonemealableBlocksInArea(Level level, BlockPos origin, int size) {
+        List<BlockPos> targets = new ArrayList<>();
+        int minOffset = -((size - 1) / 2);
+        int maxOffset = size / 2;
+        for (int x = minOffset; x <= maxOffset; x++) {
+            for (int z = minOffset; z <= maxOffset; z++) {
+                BlockPos pos = origin.offset(x, 0, z);
+                BlockState state = level.getBlockState(pos);
+                if (state.getBlock() instanceof net.minecraft.world.level.block.BonemealableBlock bonemealable) {
+                    if (bonemealable.isValidBonemealTarget(level, pos, state)) {
+                        targets.add(pos);
+                    }
+                }
+            }
+        }
+        return targets;
+    }
+
     private static List<BlockPos> matureSupportedCropsInArea(Level level, BlockPos origin, String expectedCropId, int size) {
         List<BlockPos> targets = new ArrayList<>();
         int minOffset = -((size - 1) / 2);
@@ -207,6 +248,7 @@ public final class RightClickHarvest implements FeatureModule {
         }
         return targets;
     }
+
 
     private static BlockHitResult hitFor(BlockPos pos, BlockHitResult original) {
         return new BlockHitResult(Vec3.atCenterOf(pos), original.getDirection(), pos, original.isInside());
