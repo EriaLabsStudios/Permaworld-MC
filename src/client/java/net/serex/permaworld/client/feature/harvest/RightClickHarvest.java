@@ -51,6 +51,9 @@ public final class RightClickHarvest implements FeatureModule {
             "minecraft:netherite_hoe", HoeMaterial.NETHERITE
     );
 
+    private static final java.util.Random RANDOM = new java.util.Random();
+
+
     @Override
     public void onClientInit() {
         UseBlockCallback.EVENT.register(RightClickHarvest::onUseBlock);
@@ -150,12 +153,13 @@ public final class RightClickHarvest implements FeatureModule {
         }
 
         if (!canReplant) {
-            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en el inventario; solo rompiendo plantas con aviso audiovisual.", cropId);
+            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en el inventario; solo rompiendo plantas con aviso audiovisual y partículas.", cropId);
             // Solo rompemos los cultivos sin replantar.
             for (BlockPos target : targets) {
                 boolean broken = gameMode.startDestroyBlock(target, hit.getDirection());
                 if (broken) {
                     level.destroyBlock(target, true);
+                    spawnParticles(level, target, net.minecraft.core.particles.ParticleTypes.SMOKE, 4);
                 }
             }
             // Aviso audiovisual sutil:
@@ -186,6 +190,7 @@ public final class RightClickHarvest implements FeatureModule {
 
                 // Replantar usando la offhand (InteractionHand.OFF_HAND).
                 gameMode.useItemOn(local, InteractionHand.OFF_HAND, hitFor(target, hit));
+                spawnParticles(level, target, net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, 4);
                 DebugLog.log("harvest", "Replantado cultivo en {}.", target);
             }
         } finally {
@@ -241,6 +246,19 @@ public final class RightClickHarvest implements FeatureModule {
         }
         return targets;
     }
+
+    private static void spawnParticles(Level level, BlockPos pos, net.minecraft.core.particles.SimpleParticleType type, int count) {
+        double x = pos.getX() + 0.5;
+        double y = pos.getY() + 0.3;
+        double z = pos.getZ() + 0.5;
+        for (int i = 0; i < count; i++) {
+            double rx = (RANDOM.nextDouble() - 0.5) * 0.6;
+            double ry = RANDOM.nextDouble() * 0.5;
+            double rz = (RANDOM.nextDouble() - 0.5) * 0.6;
+            level.addParticle(type, x + rx, y + ry, z + rz, 0.0, 0.02, 0.0);
+        }
+    }
+
 
     private static List<BlockPos> matureSupportedCropsInArea(Level level, BlockPos origin, String expectedCropId, int size) {
         List<BlockPos> targets = new ArrayList<>();
