@@ -106,6 +106,6 @@
   "permaworld.harvest.no_seeds": "§c⚠ §fNo seeds to replant...",
   "permaworld.harvest.tooltip.sickle": "§2🌾 Permaworld Sickle",
   "permaworld.harvest.tooltip.radius": "  §7• Harvest radius: §e%s",
-  "permaworld.harvest.tooltip.bonemeal": "  §7• Growth in area: §aSickle + Bone Meal"
+  "permaworld.harvest.tooltip.bonemeal": "  §7• Growth in area: §aSickle + Bone Meal (Hand/Hotbar)"
 }
 

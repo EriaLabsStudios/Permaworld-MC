@@ -106,6 +106,6 @@
   "permaworld.harvest.no_seeds": "§c⚠ §fSin semillas para replantar...",
   "permaworld.harvest.tooltip.sickle": "§2🌾 Hoz Permaworld",
   "permaworld.harvest.tooltip.radius": "  §7• Cosecha en área: §e%s",
-  "permaworld.harvest.tooltip.bonemeal": "  §7• Crecimiento en área: §aHoz + Polvo"
+  "permaworld.harvest.tooltip.bonemeal": "  §7• Crecimiento en área: §aHoz + Polvo (Mano/Hotbar)"
 }
 
