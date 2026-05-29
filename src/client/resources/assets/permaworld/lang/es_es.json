@@ -49,6 +49,8 @@
   "permaworld.config.harvest.iron_area": "Area hoz de hierro: %s bloques",
   "permaworld.config.harvest.diamond_area": "Area hoz de diamante: %s bloques",
   "permaworld.config.harvest.netherite_area": "Area hoz de netherite: %s bloques",
+  "permaworld.config.harvest.bonemeal_area": "Polvo de hueso en área: %s",
+  "permaworld.config.harvest.bonemeal_from_hotbar": "Autousar polvo de la hotbar: %s",
   "permaworld.config.reset_layout": "Reset layout",
   "permaworld.config.resource_pack.enabled": "Perfiles de packs y drag-drop: %s",
   "permaworld.config.resource_pack.delete_button": "Botón de borrar pack: %s",

@@ -203,6 +203,16 @@ public final class PermaworldConfigScreen extends Screen {
                 () -> ConfigManager.get().config().harvest.netheriteHoeArea,
                 value -> ConfigManager.get().config().harvest.netheriteHoeArea = clamp(value, 1, 8),
                 1);
+        row += 24;
+
+        addControl(x, row, "permaworld.config.harvest.bonemeal_area",
+                () -> ConfigManager.get().config().harvest.bonemealArea,
+                value -> ConfigManager.get().config().harvest.bonemealArea = value);
+        row += 24;
+
+        addControl(x, row, "permaworld.config.harvest.bonemeal_from_hotbar",
+                () -> ConfigManager.get().config().harvest.bonemealFromHotbar,
+                value -> ConfigManager.get().config().harvest.bonemealFromHotbar = value);
     }
 
     private void addResourcePackControls(int x, int row) {

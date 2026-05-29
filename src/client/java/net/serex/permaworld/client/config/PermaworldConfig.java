@@ -122,6 +122,8 @@ public class PermaworldConfig {
         public int ironHoeArea = 2;
         public int diamondHoeArea = 3;
         public int netheriteHoeArea = 4;
+        public boolean bonemealArea = true;
+        public boolean bonemealFromHotbar = true;
     }
 
     public static class ResourcePackConfig {

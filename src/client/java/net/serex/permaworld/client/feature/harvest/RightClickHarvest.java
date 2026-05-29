@@ -82,40 +82,119 @@ public final class RightClickHarvest implements FeatureModule {
         String mainHandId = BuiltInRegistries.ITEM.getKey(mainHandStack.getItem()).toString();
         String offHandId = BuiltInRegistries.ITEM.getKey(offHandStack.getItem()).toString();
 
-        boolean boneMealInMain = "minecraft:bone_meal".equals(mainHandId);
-        boolean boneMealInOff = "minecraft:bone_meal".equals(offHandId);
+        boolean mainIsHoe = hoeArea(mainHandStack, ConfigManager.get().config().harvest) != null;
+        boolean offIsHoe = hoeArea(offHandStack, ConfigManager.get().config().harvest) != null;
 
-        InteractionHand boneMealHand = null;
-        ItemStack hoeStack = null;
+        if (ConfigManager.get().config().harvest.bonemealArea) {
+            boolean boneMealInMain = "minecraft:bone_meal".equals(mainHandId);
+            boolean boneMealInOff = "minecraft:bone_meal".equals(offHandId);
 
-        if (boneMealInMain) {
-            hoeStack = offHandStack;
-            boneMealHand = InteractionHand.MAIN_HAND;
-        } else if (boneMealInOff) {
-            hoeStack = mainHandStack;
-            boneMealHand = InteractionHand.OFF_HAND;
-        }
+            InteractionHand boneMealHand = null;
+            ItemStack hoeStack = null;
 
-        if (boneMealHand != null) {
-            HoeArea offhandHoeArea = hoeArea(hoeStack, ConfigManager.get().config().harvest);
-            if (offhandHoeArea != null) {
-                BlockPos pos = hit.getBlockPos();
-                List<BlockPos> targets = bonemealableBlocksInArea(level, pos, offhandHoeArea.size());
-                if (!targets.isEmpty()) {
-                    DebugLog.log("harvest", "Polvo de hueso en área (tamaño {}) en {} con hoz en la otra mano.", offhandHoeArea.size(), pos);
-                    try {
-                        isProcessing = true;
-                        for (BlockPos target : targets) {
-                            ItemStack currentBoneMealStack = boneMealHand == InteractionHand.MAIN_HAND ? local.getMainHandItem() : local.getOffhandItem();
-                            if (currentBoneMealStack.isEmpty() || !BuiltInRegistries.ITEM.getKey(currentBoneMealStack.getItem()).toString().equals("minecraft:bone_meal")) {
+            if (boneMealInMain && offIsHoe) {
+                hoeStack = offHandStack;
+                boneMealHand = InteractionHand.MAIN_HAND;
+            } else if (boneMealInOff && mainIsHoe) {
+                hoeStack = mainHandStack;
+                boneMealHand = InteractionHand.OFF_HAND;
+            }
+
+            if (boneMealHand != null) {
+                HoeArea offhandHoeArea = hoeArea(hoeStack, ConfigManager.get().config().harvest);
+                if (offhandHoeArea != null) {
+                    BlockPos pos = hit.getBlockPos();
+                    List<BlockPos> targets = bonemealableBlocksInArea(level, pos, offhandHoeArea.size());
+                    if (!targets.isEmpty()) {
+                        DebugLog.log("harvest", "Polvo de hueso en área (tamaño {}) en {} con hoz en la otra mano.", offhandHoeArea.size(), pos);
+                        try {
+                            isProcessing = true;
+                            for (BlockPos target : targets) {
+                                ItemStack currentBoneMealStack = boneMealHand == InteractionHand.MAIN_HAND ? local.getMainHandItem() : local.getOffhandItem();
+                                if (currentBoneMealStack.isEmpty() || !BuiltInRegistries.ITEM.getKey(currentBoneMealStack.getItem()).toString().equals("minecraft:bone_meal")) {
+                                    break;
+                                }
+                                gameMode.useItemOn(local, boneMealHand, hitFor(target, hit));
+                            }
+                        } finally {
+                            isProcessing = false;
+                        }
+                        return InteractionResult.SUCCESS;
+                    }
+                }
+            } else if (ConfigManager.get().config().harvest.bonemealFromHotbar) {
+                // Si solo sostiene la hoz y el polvo de hueso está en la hotbar:
+                int hotbarSlot = findBoneMealHotbarSlot(local.getInventory());
+                if (hotbarSlot != -1) {
+                    if (offIsHoe) {
+                        // Caso A: Hoz en mano secundaria. Cambiamos el slot de la hotbar.
+                        int originalSelected = getSelectedSlotReflection(local.getInventory());
+                        setSelectedSlotReflection(local.getInventory(), hotbarSlot);
+                        local.connection.send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(hotbarSlot));
+
+                        HoeArea offhandHoeArea = hoeArea(offHandStack, ConfigManager.get().config().harvest);
+                        BlockPos pos = hit.getBlockPos();
+                        List<BlockPos> targets = bonemealableBlocksInArea(level, pos, offhandHoeArea.size());
+                        if (!targets.isEmpty()) {
+                            DebugLog.log("harvest", "Polvo de hueso en área desde hotbar (tamaño {}) en {} con hoz en mano secundaria.", offhandHoeArea.size(), pos);
+                            try {
+                                isProcessing = true;
+                                for (BlockPos target : targets) {
+                                    ItemStack currentBoneMealStack = local.getMainHandItem();
+                                    if (currentBoneMealStack.isEmpty() || !BuiltInRegistries.ITEM.getKey(currentBoneMealStack.getItem()).toString().equals("minecraft:bone_meal")) {
+                                        break;
+                                    }
+                                    gameMode.useItemOn(local, InteractionHand.MAIN_HAND, hitFor(target, hit));
+                                }
+                            } finally {
+                                isProcessing = false;
+                                setSelectedSlotReflection(local.getInventory(), originalSelected);
+                                local.connection.send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(originalSelected));
+                            }
+                            return InteractionResult.SUCCESS;
+                        } else {
+                            setSelectedSlotReflection(local.getInventory(), originalSelected);
+                            local.connection.send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(originalSelected));
+                        }
+                    } else if (mainIsHoe) {
+                        // Caso B: Hoz en mano principal. Intercambiamos temporalmente con la offhand.
+                        int menuSlotId = -1;
+                        for (Slot slot : local.inventoryMenu.slots) {
+                            if (slot.container == local.getInventory() && slot.getContainerSlot() == hotbarSlot) {
+                                menuSlotId = slot.index;
                                 break;
                             }
-                            gameMode.useItemOn(local, boneMealHand, hitFor(target, hit));
                         }
-                    } finally {
-                        isProcessing = false;
+                        if (menuSlotId != -1) {
+                            // Intercambiar polvo de hueso a la offhand (slot 40)
+                            gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
+
+                            HoeArea mainHoeArea = hoeArea(mainHandStack, ConfigManager.get().config().harvest);
+                            BlockPos pos = hit.getBlockPos();
+                            List<BlockPos> targets = bonemealableBlocksInArea(level, pos, mainHoeArea.size());
+                            if (!targets.isEmpty()) {
+                                DebugLog.log("harvest", "Polvo de hueso en área desde hotbar (tamaño {}) en {} con hoz en mano principal.", mainHoeArea.size(), pos);
+                                try {
+                                    isProcessing = true;
+                                    for (BlockPos target : targets) {
+                                        ItemStack currentBoneMealStack = local.getOffhandItem();
+                                        if (currentBoneMealStack.isEmpty() || !BuiltInRegistries.ITEM.getKey(currentBoneMealStack.getItem()).toString().equals("minecraft:bone_meal")) {
+                                            break;
+                                        }
+                                        gameMode.useItemOn(local, InteractionHand.OFF_HAND, hitFor(target, hit));
+                                    }
+                                } finally {
+                                    isProcessing = false;
+                                    // Devolver el polvo de hueso a su sitio
+                                    gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
+                                }
+                                return InteractionResult.SUCCESS;
+                            } else {
+                                // Devolver si no hay targets
+                                gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
+                            }
+                        }
                     }
-                    return InteractionResult.SUCCESS;
                 }
             }
         }
@@ -284,6 +363,37 @@ public final class RightClickHarvest implements FeatureModule {
             level.addParticle(type, x + rx, y + ry, z + rz, 0.0, 0.02, 0.0);
         }
     }
+
+    private static int findBoneMealHotbarSlot(Inventory inv) {
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (!stack.isEmpty() && "minecraft:bone_meal".equals(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int getSelectedSlotReflection(Inventory inv) {
+        try {
+            java.lang.reflect.Field field = Inventory.class.getDeclaredField("selected");
+            field.setAccessible(true);
+            return field.getInt(inv);
+        } catch (Exception e) {
+            return inv.getSelectedSlot();
+        }
+    }
+
+    private static void setSelectedSlotReflection(Inventory inv, int slot) {
+        try {
+            java.lang.reflect.Field field = Inventory.class.getDeclaredField("selected");
+            field.setAccessible(true);
+            field.setInt(inv, slot);
+        } catch (Exception e) {
+            // fallback if needed
+        }
+    }
+
 
 
     private static List<BlockPos> matureSupportedCropsInArea(Level level, BlockPos origin, String expectedCropId, int size) {

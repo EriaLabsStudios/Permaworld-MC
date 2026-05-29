@@ -49,6 +49,8 @@
   "permaworld.config.harvest.iron_area": "Iron hoe area: %s blocks wide",
   "permaworld.config.harvest.diamond_area": "Diamond hoe area: %s blocks wide",
   "permaworld.config.harvest.netherite_area": "Netherite hoe area: %s blocks wide",
+  "permaworld.config.harvest.bonemeal_area": "Bone meal in area: %s",
+  "permaworld.config.harvest.bonemeal_from_hotbar": "Auto-use bone meal from hotbar: %s",
   "permaworld.config.reset_layout": "Reset layout",
   "permaworld.config.resource_pack.enabled": "Pack profiles & drag-drop: %s",
   "permaworld.config.resource_pack.delete_button": "Delete pack button: %s",
