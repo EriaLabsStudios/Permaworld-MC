@@ -2343,9 +2343,30 @@ function drawMap() {
     const maxRegionZ = Math.ceil(maxMc.z / 128);
     
     const totalVisibleRegions = (maxRegionX - minRegionX + 1) * (maxRegionZ - minRegionZ + 1);
+    const regionSizePx = 128 * mapZoom; // size in screen pixels of one region tile
     
-    // Prevent fetching too many tiles if zoomed out excessively (increased limit for low-zoom rendering)
-    if (totalVisibleRegions < 220) {
+    // PASS 1: Always render already-cached tiles — regardless of zoom level.
+    // This ensures terrain stays visible when zoomed out, using the tiles
+    // that were loaded at higher zoom levels.
+    ctx.save();
+    // Use smooth interpolation when zoomed out so scaled tiles look clean,
+    // crisp pixel-art rendering when zoomed in close.
+    ctx.imageSmoothingEnabled = mapZoom < 1.5;
+    ctx.imageSmoothingQuality = "high";
+    for (let rx = minRegionX; rx <= maxRegionX; rx++) {
+      for (let rz = minRegionZ; rz <= maxRegionZ; rz++) {
+        const key = `${rx},${rz},${mapActiveDimension}`;
+        if (regionImages[key]?.loaded && !regionImages[key].failed) {
+          const cPos = mcToCanvas(rx * 128, rz * 128);
+          ctx.drawImage(regionImages[key].image, cPos.x, cPos.y, regionSizePx, regionSizePx);
+        }
+      }
+    }
+    ctx.restore();
+
+    // PASS 2: Fetch missing tiles — only when not too many are visible AND
+    // each tile would be at least 4px wide (no point fetching invisible tiles).
+    if (totalVisibleRegions <= 400 && regionSizePx >= 4) {
       for (let rx = minRegionX; rx <= maxRegionX; rx++) {
         for (let rz = minRegionZ; rz <= maxRegionZ; rz++) {
           const key = `${rx},${rz},${mapActiveDimension}`;
@@ -2353,22 +2374,8 @@ function drawMap() {
             const img = new Image();
             img.src = `/api/map/region?rx=${rx}&rz=${rz}&dim=${encodeURIComponent(mapActiveDimension)}`;
             regionImages[key] = { loaded: false, failed: false, image: img };
-            img.onload = () => {
-              regionImages[key].loaded = true;
-              requestRender();
-            };
-            img.onerror = () => {
-              regionImages[key].loaded = true;
-              regionImages[key].failed = true;
-            };
-          } else if (regionImages[key].loaded && !regionImages[key].failed) {
-            const cPos = mcToCanvas(rx * 128, rz * 128);
-            const size = 128 * mapZoom;
-            
-            ctx.save();
-            ctx.imageSmoothingEnabled = false; // Keep it crisp and pixelated!
-            ctx.drawImage(regionImages[key].image, cPos.x, cPos.y, size, size);
-            ctx.restore();
+            img.onload = () => { regionImages[key].loaded = true; requestRender(); };
+            img.onerror = () => { regionImages[key].loaded = true; regionImages[key].failed = true; };
           }
         }
       }
