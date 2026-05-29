@@ -137,6 +137,16 @@ public final class InventorySorter {
         return best;
     }
 
+    private static class MergeableSlot {
+        final int menuSlotId;
+        ItemStack virtualStack;
+
+        MergeableSlot(int menuSlotId, ItemStack stack) {
+            this.menuSlotId = menuSlotId;
+            this.virtualStack = stack.copy();
+        }
+    }
+
     /**
      * Ordena todos los slots del {@code menu} cuyo {@code slot.container} sea
      * {@code targetContainer}. Si {@code onlyStorage} es true y el contenedor es
@@ -148,11 +158,16 @@ public final class InventorySorter {
                                       Container targetContainer,
                                       boolean onlyStorage,
                                       SortMode mode) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) {
+            return;
+        }
+
+        // 1. Recopilar todos los slots y estados de marcas
         List<Integer> menuSlotIds = new ArrayList<>();
-        List<SortableSlot> snapshot = new ArrayList<>();
-        Set<Integer> markedSnapshotIdx = new HashSet<>();
-        Set<Integer> immovableSnapshotIdx = new HashSet<>();
-        Map<Integer, SlotMark> marksBySnapshotIdx = new HashMap<>();
+        List<MergeableSlot> mergeable = new ArrayList<>();
+        Map<Integer, SlotMark> slotMarks = new HashMap<>();
 
         for (int i = 0; i < menu.slots.size(); i++) {
             Slot slot = menu.slots.get(i);
@@ -170,10 +185,94 @@ public final class InventorySorter {
             }
 
             menuSlotIds.add(i);
-            snapshot.add(toSortable(slot.getItem()));
             SlotMark mark = SlotLockManager.markForSlot(slot);
             if (mark != null) {
-                int snapshotIdx = snapshot.size() - 1;
+                slotMarks.put(i, mark);
+            }
+
+            boolean isLocked = mark != null && mark.mode() == SlotLockManager.SlotMarkMode.LOCK;
+            if (!isLocked) {
+                mergeable.add(new MergeableSlot(i, slot.getItem()));
+            }
+        }
+
+        if (menuSlotIds.isEmpty()) {
+            DebugLog.log("sort", "No se detectaron slots aptos para ordenar.");
+            return;
+        }
+
+        // 2. Ejecutar la fusión virtual de stacks y emitir los clicks físicos en un tick
+        int n = mergeable.size();
+        int mergeClicks = 0;
+        for (int i = 0; i < n; i++) {
+            MergeableSlot slotA = mergeable.get(i);
+            if (slotA.virtualStack.isEmpty() || slotA.virtualStack.getCount() >= slotA.virtualStack.getMaxStackSize()) {
+                continue;
+            }
+
+            for (int j = i + 1; j < n; j++) {
+                MergeableSlot slotB = mergeable.get(j);
+                if (slotB.virtualStack.isEmpty()) {
+                    continue;
+                }
+
+                if (ItemStack.isSameItemSameComponents(slotA.virtualStack, slotB.virtualStack)) {
+                    int maxStack = slotA.virtualStack.getMaxStackSize();
+                    int space = maxStack - slotA.virtualStack.getCount();
+                    if (space <= 0) {
+                        break;
+                    }
+
+                    // Enviar los 3 clicks de fusión: B al cursor -> A -> B sobrante
+                    pickup(gameMode, menu.containerId, slotB.menuSlotId, player);
+                    pickup(gameMode, menu.containerId, slotA.menuSlotId, player);
+                    pickup(gameMode, menu.containerId, slotB.menuSlotId, player);
+                    mergeClicks += 3;
+
+                    // Actualizar estado virtual
+                    int toMove = Math.min(space, slotB.virtualStack.getCount());
+                    slotA.virtualStack.setCount(slotA.virtualStack.getCount() + toMove);
+                    slotB.virtualStack.setCount(slotB.virtualStack.getCount() - toMove);
+                    if (slotB.virtualStack.getCount() <= 0) {
+                        slotB.virtualStack = ItemStack.EMPTY;
+                    }
+
+                    if (slotA.virtualStack.getCount() >= maxStack) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (mergeClicks > 0) {
+            DebugLog.log("sort", "Fusión de stacks: emitidos {} clicks sintéticos.", mergeClicks);
+        }
+
+        // 3. Mapear los stacks virtuales post-fusión
+        Map<Integer, ItemStack> finalStacks = new HashMap<>();
+        for (MergeableSlot ms : mergeable) {
+            finalStacks.put(ms.menuSlotId, ms.virtualStack);
+        }
+        for (int menuSlotId : menuSlotIds) {
+            if (!finalStacks.containsKey(menuSlotId)) {
+                finalStacks.put(menuSlotId, menu.slots.get(menuSlotId).getItem());
+            }
+        }
+
+        // 4. Construir instantánea de ordenación a partir de los stacks ya fusionados
+        List<SortableSlot> snapshot = new ArrayList<>();
+        Set<Integer> markedSnapshotIdx = new HashSet<>();
+        Set<Integer> immovableSnapshotIdx = new HashSet<>();
+        Map<Integer, SlotMark> marksBySnapshotIdx = new HashMap<>();
+
+        for (int i = 0; i < menuSlotIds.size(); i++) {
+            int menuSlotId = menuSlotIds.get(i);
+            ItemStack stack = finalStacks.get(menuSlotId);
+            snapshot.add(toSortable(stack));
+
+            SlotMark mark = slotMarks.get(menuSlotId);
+            if (mark != null) {
+                int snapshotIdx = i;
                 markedSnapshotIdx.add(snapshotIdx);
                 marksBySnapshotIdx.put(snapshotIdx, mark);
                 if (mark.mode() == SlotLockManager.SlotMarkMode.LOCK) {
@@ -182,21 +281,13 @@ public final class InventorySorter {
             }
         }
 
-        if (snapshot.isEmpty()) {
-            DebugLog.log("sort", "No se detectaron slots aptos para ordenar.");
-            return;
-        }
-        DebugLog.log("sort", "Detectados {} slots ({} reservados por Favorito/Lock).",
+        DebugLog.log("sort", "Fusión completada. slots={} (reservados={}).",
                 snapshot.size(), markedSnapshotIdx.size());
 
         List<SortableSlot> target = sortRespectingSlotMarks(snapshot, marksBySnapshotIdx, mode);
-        List<Integer> playerSlotIds = menuSlotIds;        // alias para reutilizar el bloque inferior
+        List<Integer> playerSlotIds = menuSlotIds;
 
-        // Selección-sort emitiendo swaps con 3 PICKUPs por movimiento.
-        // Trabajamos sobre una copia mutable de snapshot para seguir el estado lógico.
-        // IMPORTANTE: no metemos sleep entre paquetes. Antes el sort hacía Thread.sleep
-        // en el client thread (25ms x 3 pickups por swap), lo que congelaba el cliente
-        // entero. Ahora se emiten todos los pickups seguidos en el mismo tick.
+        // 5. Bucle de swaps
         List<SortableSlot> current = new ArrayList<>(snapshot);
         Set<Integer> touchedMenuSlots = SortFeedback.newTouchedSet();
         int clicks = 0;
@@ -208,7 +299,6 @@ public final class InventorySorter {
             if (equalSlots(current.get(i), target.get(i))) {
                 continue;
             }
-            // Busca en j > i un slot que coincida con target[i] (y que no esté bloqueado).
             int j = findSource(current, target.get(i), i + 1, markedSnapshotIdx);
             if (j < 0) {
                 continue;
@@ -216,7 +306,7 @@ public final class InventorySorter {
             swap(gameMode, menu.containerId, playerSlotIds.get(i), playerSlotIds.get(j));
             touchedMenuSlots.add(playerSlotIds.get(i));
             touchedMenuSlots.add(playerSlotIds.get(j));
-            // Refleja el swap en la copia lógica.
+            
             SortableSlot tmp = current.get(i);
             current.set(i, current.get(j));
             current.set(j, tmp);
@@ -224,8 +314,8 @@ public final class InventorySorter {
             clicks += 3;
         }
 
-        Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks);
-        DebugLog.log("sort", "Sort completado: {} clicks sintéticos emitidos (sin delay).", clicks);
+        Permaworld.LOGGER.debug("Inventario ordenado con {} clicks sintéticos.", clicks + mergeClicks);
+        DebugLog.log("sort", "Sort completado: {} clicks de ordenación, {} clicks de fusión.", clicks, mergeClicks);
         SortFeedback.show(mode, menu.containerId, SortFeedback.touchedOrFallback(touchedMenuSlots, menuSlotIds));
     }
 

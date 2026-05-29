@@ -36,6 +36,10 @@ public class PermaworldConfig {
         public static final int DEFAULT_CONTAINER_BUTTON_OFFSET_Y = 4;
 
         public boolean enabled = true;
+        public boolean showSortByName = true;
+        public boolean showSortByCount = true;
+        public boolean showSortByCategory = true;
+        public boolean layoutEditMode = false;
         public int buttonSize = DEFAULT_BUTTON_SIZE;
         public int buttonGap = DEFAULT_BUTTON_GAP;
         public int buttonOffsetX = DEFAULT_BUTTON_OFFSET_X;
@@ -48,6 +52,10 @@ public class PermaworldConfig {
             buttonOffsetX = DEFAULT_BUTTON_OFFSET_X;
             inventoryButtonOffsetY = DEFAULT_INVENTORY_BUTTON_OFFSET_Y;
             containerButtonOffsetY = DEFAULT_CONTAINER_BUTTON_OFFSET_Y;
+            showSortByName = true;
+            showSortByCount = true;
+            showSortByCategory = true;
+            layoutEditMode = false;
         }
     }
 
