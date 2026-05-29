@@ -18,8 +18,8 @@ class WebAssetsSignatureTest {
 
         assertTrue(html.contains("Permaworld Logbook"));
         assertTrue(html.contains("filterBar"));
-        assertTrue(html.contains("Statistics"));
-        assertTrue(css.contains("Monocraft"));
+        assertTrue(html.contains("STATS"));         // filter button for Statistics tab
+        assertTrue(css.contains("Outfit"));          // primary UI font (replaced Monocraft)
         assertTrue(css.contains("--grass-1"));
         assertTrue(css.contains(".stat-grid"));
         assertTrue(css.contains(".advancement-grid"));
