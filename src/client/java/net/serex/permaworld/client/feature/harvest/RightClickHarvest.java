@@ -114,6 +114,11 @@ public final class RightClickHarvest implements FeatureModule {
             return InteractionResult.PASS;
         }
 
+        List<BlockPos> targets = matureSupportedCropsInArea(level, pos, cropId, hoeArea.size());
+        if (targets.isEmpty()) {
+            return InteractionResult.PASS;
+        }
+
         Inventory inv = local.getInventory();
 
         // 1) ¿Tiene la semilla compatible directamente en la offhand?
@@ -123,32 +128,40 @@ public final class RightClickHarvest implements FeatureModule {
 
         int seedSlot = -1;
         int menuSlotId = -1;
+        boolean canReplant = true;
 
         if (!hasSeedInOffhand) {
             // Buscamos en el inventario (0..35)
             seedSlot = CropReplanter.findSeedSlot(cropId, snapshotItemIds(inv));
             if (seedSlot < 0) {
-                DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en el inventario; click pasa a vanilla.", cropId);
-                return InteractionResult.PASS;
-            }
-
-            // Buscamos el slot ID del menú que corresponde a seedSlot
-            for (Slot slot : local.inventoryMenu.slots) {
-                if (slot.container == inv && slot.getContainerSlot() == seedSlot) {
-                    menuSlotId = slot.index;
-                    break;
+                canReplant = false;
+            } else {
+                // Buscamos el slot ID del menú que corresponde a seedSlot
+                for (Slot slot : local.inventoryMenu.slots) {
+                    if (slot.container == inv && slot.getContainerSlot() == seedSlot) {
+                        menuSlotId = slot.index;
+                        break;
+                    }
                 }
-            }
-
-            if (menuSlotId == -1) {
-                DebugLog.log("harvest", "Error: no se pudo mapear seedSlot {} a menuSlotId.", seedSlot);
-                return InteractionResult.PASS;
+                if (menuSlotId == -1) {
+                    canReplant = false;
+                }
             }
         }
 
-        List<BlockPos> targets = matureSupportedCropsInArea(level, pos, cropId, hoeArea.size());
-        if (targets.isEmpty()) {
-            return InteractionResult.PASS;
+        if (!canReplant) {
+            DebugLog.log("harvest", "Cultivo maduro {} pero sin semilla en el inventario; solo rompiendo plantas con aviso audiovisual.", cropId);
+            // Solo rompemos los cultivos sin replantar.
+            for (BlockPos target : targets) {
+                boolean broken = gameMode.startDestroyBlock(target, hit.getDirection());
+                if (broken) {
+                    level.destroyBlock(target, true);
+                }
+            }
+            // Aviso audiovisual sutil:
+            level.playLocalSound(pos.getX(), pos.getY(), pos.getZ(), net.minecraft.sounds.SoundEvents.DISPENSER_FAIL, net.minecraft.sounds.SoundSource.PLAYERS, 0.4F, 1.2F, false);
+            mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.translatable("permaworld.harvest.no_seeds"), false);
+            return InteractionResult.SUCCESS;
         }
 
         DebugLog.log("harvest", "Cosechando {} cultivo(s) desde {} usando offhand (hasSeedInOffhand={}, seedSlot={}, menuSlotId={}).",

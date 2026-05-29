@@ -100,5 +100,7 @@
   "permaworld.quickdrop.tooltip": "Quick drop matching items into container",
   "permaworld.quickdrop.feedback.no_items": "No matching items to drop",
   "permaworld.quickdrop.feedback.no_chest": "No opened chests nearby in radius",
-  "permaworld.quickdrop.feedback.success": "§a✔ §fDropped §7%s§f items into chests!"
+  "permaworld.quickdrop.feedback.success": "§a✔ §fDropped §7%s§f items into chests!",
+  "permaworld.harvest.no_seeds": "§c⚠ §fNo seeds to replant..."
 }
+
