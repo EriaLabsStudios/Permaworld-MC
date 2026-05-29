@@ -97,7 +97,7 @@ public final class PermaworldRecordStore {
         return playerIds;
     }
 
-    private Path playerRecordPath(UUID playerUuid) {
+    public Path playerRecordPath(UUID playerUuid) {
         return root.resolve("players").resolve(playerUuid.toString()).resolve(RECORD_FILE);
     }
 

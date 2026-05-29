@@ -1,8 +1,10 @@
 package net.serex.permaworld.client;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.serex.permaworld.Permaworld;
 import net.serex.permaworld.client.config.ConfigManager;
+import net.serex.permaworld.client.config.PermaworldConfigScreen;
 import net.serex.permaworld.client.feature.FeatureModule;
 import net.serex.permaworld.client.feature.harvest.RightClickHarvest;
 import net.serex.permaworld.client.feature.slotlock.SlotLockFeatureModule;
@@ -26,6 +28,17 @@ public class PermaworldClient implements ClientModInitializer {
         // Registra los keybinds globales del mod.
         Keybinds.register();
 
+        // Registra el callback para abrir la configuración directamente
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (Keybinds.openConfig != null) {
+                while (Keybinds.openConfig.consumeClick()) {
+                    if (client.player != null && client.screen == null) {
+                        client.setScreen(new PermaworldConfigScreen(null));
+                    }
+                }
+            }
+        });
+
         // Registra cada FeatureModule. A medida que se vayan añadiendo features
         // en próximas milestones, se añaden aquí.
         registerModules();
@@ -36,13 +49,14 @@ public class PermaworldClient implements ClientModInitializer {
 
         boolean debug = ConfigManager.get().config().debug;
         Permaworld.LOGGER.info("Permaworld client inicializado con {} módulo(s). debug={}",
-                MODULES.size(), debug);
+                 MODULES.size(), debug);
         if (debug) {
             Permaworld.LOGGER.info("[Permaworld][debug] Modo debug ACTIVO. Las features loguearan con prefijo [Permaworld][debug][<feature>].");
-            Permaworld.LOGGER.info("[Permaworld][debug] Keybinds registrados: sort='{}', quickDrop='{}', slotLockModifier='{}'.",
+            Permaworld.LOGGER.info("[Permaworld][debug] Keybinds registrados: sort='{}', quickDrop='{}', slotLockModifier='{}', openConfig='{}'.",
                     Keybinds.sortInventory.saveString(),
                     Keybinds.quickDropStack.saveString(),
-                    Keybinds.slotLockModifier.saveString());
+                    Keybinds.slotLockModifier.saveString(),
+                    Keybinds.openConfig.saveString());
         }
     }
 

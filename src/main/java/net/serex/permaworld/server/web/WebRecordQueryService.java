@@ -66,12 +66,22 @@ public final class WebRecordQueryService {
                 continue;
             }
             JsonObject latest = records.getLast();
+            
+            long logSizeBytes = 0;
+            try {
+                java.nio.file.Path path = store.playerRecordPath(playerId);
+                if (java.nio.file.Files.exists(path)) {
+                    logSizeBytes = java.nio.file.Files.size(path);
+                }
+            } catch (Exception ignored) {}
+
             summaries.add(WebDtos.playerSummary(
                     playerId.toString(),
                     latest.has("playerName") ? latest.get("playerName").getAsString() : playerId.toString(),
                     latest.has("reason") ? latest.get("reason").getAsString() : "",
                     latest.has("timestamp") ? latest.get("timestamp").getAsString() : "",
-                    records.size()
+                    records.size(),
+                    logSizeBytes
             ));
         }
         summaries.sort(Comparator.comparing((JsonObject json) -> json.get("lastTimestamp").getAsString()).reversed());
@@ -968,5 +978,269 @@ public final class WebRecordQueryService {
         res.add("players", playersArr);
         
         return res;
+    }
+
+    public com.google.gson.JsonObject mapData() {
+        com.google.gson.JsonObject result = new com.google.gson.JsonObject();
+        
+        com.google.gson.JsonObject paths = new com.google.gson.JsonObject();
+        com.google.gson.JsonArray structures = new com.google.gson.JsonArray();
+        
+        try {
+            java.util.Set<String> discoveredCoords = new java.util.HashSet<>();
+            for (UUID playerId : store.knownPlayerIds()) {
+                List<JsonObject> records = store.readPlayerRecords(playerId);
+                com.google.gson.JsonArray playerPoints = new com.google.gson.JsonArray();
+                
+                for (JsonObject record : records) {
+                    if (record.has("reason")) {
+                        String reason = record.get("reason").getAsString();
+                        if ("PATH_SAMPLE".equals(reason) || "DEATH".equals(reason) || "DIMENSION_CHANGE".equals(reason)) {
+                            com.google.gson.JsonObject point = new com.google.gson.JsonObject();
+                            point.addProperty("timestamp", record.has("timestamp") ? record.get("timestamp").getAsString() : "");
+                            point.addProperty("dimension", record.has("dimension") ? record.get("dimension").getAsString() : "minecraft:overworld");
+                            if (record.has("position") && record.get("position").isJsonObject()) {
+                                JsonObject pos = record.getAsJsonObject("position");
+                                point.addProperty("x", pos.has("x") ? pos.get("x").getAsDouble() : 0.0);
+                                point.addProperty("y", pos.has("y") ? pos.get("y").getAsDouble() : 0.0);
+                                point.addProperty("z", pos.has("z") ? pos.get("z").getAsDouble() : 0.0);
+                            }
+                            point.addProperty("type", reason);
+                            playerPoints.add(point);
+                        } else if ("STRUCTURE_DISCOVERED".equals(reason)) {
+                            if (record.has("metadata") && record.get("metadata").isJsonObject()) {
+                                JsonObject meta = record.getAsJsonObject("metadata");
+                                String structureId = meta.has("structureId") ? meta.get("structureId").getAsString() : "";
+                                String coords = meta.has("coords") ? meta.get("coords").getAsString() : "";
+                                String name = meta.has("name") ? meta.get("name").getAsString() : "";
+                                String dimension = record.has("dimension") ? record.get("dimension").getAsString() : "minecraft:overworld";
+                                
+                                String dedupKey = structureId + "@" + coords + "@" + dimension;
+                                if (!discoveredCoords.contains(dedupKey)) {
+                                    discoveredCoords.add(dedupKey);
+                                    com.google.gson.JsonObject struct = new com.google.gson.JsonObject();
+                                    struct.addProperty("structureId", structureId);
+                                    struct.addProperty("coords", coords);
+                                    struct.addProperty("name", name);
+                                    struct.addProperty("dimension", dimension);
+                                    struct.addProperty("discoveredBy", record.has("playerName") ? record.get("playerName").getAsString() : "");
+                                    struct.addProperty("timestamp", record.has("timestamp") ? record.get("timestamp").getAsString() : "");
+                                    if (record.has("position") && record.get("position").isJsonObject()) {
+                                        JsonObject pos = record.getAsJsonObject("position");
+                                        struct.addProperty("x", pos.has("x") ? pos.get("x").getAsDouble() : 0.0);
+                                        struct.addProperty("y", pos.has("y") ? pos.get("y").getAsDouble() : 0.0);
+                                        struct.addProperty("z", pos.has("z") ? pos.get("z").getAsDouble() : 0.0);
+                                    } else {
+                                        double[] blockCoords = parseCoordsToBlock(coords);
+                                        if (blockCoords != null) {
+                                            struct.addProperty("x", blockCoords[0]);
+                                            struct.addProperty("y", 64.0);
+                                            struct.addProperty("z", blockCoords[1]);
+                                        }
+                                    }
+                                    structures.add(struct);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (playerPoints.size() > 0) {
+                    paths.add(playerId.toString(), playerPoints);
+                }
+            }
+        } catch (Exception e) {
+            net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error compiling map data", e);
+        }
+        
+        result.add("paths", paths);
+        result.add("structures", structures);
+        
+        com.google.gson.JsonObject playersInfo = new com.google.gson.JsonObject();
+        if (server != null) {
+            for (net.minecraft.server.level.ServerPlayer player : server.getPlayerList().getPlayers()) {
+                com.google.gson.JsonObject p = new com.google.gson.JsonObject();
+                p.addProperty("name", player.getName().getString());
+                p.addProperty("online", true);
+                p.addProperty("dimension", player.level().dimension().identifier().toString());
+                p.addProperty("x", player.getX());
+                p.addProperty("y", player.getY());
+                p.addProperty("z", player.getZ());
+                playersInfo.add(player.getUUID().toString(), p);
+            }
+        }
+        
+        try {
+            for (UUID playerId : store.knownPlayerIds()) {
+                if (!playersInfo.has(playerId.toString())) {
+                    com.google.gson.JsonObject p = new com.google.gson.JsonObject();
+                    String name = playerId.toString();
+                    List<JsonObject> records = store.readPlayerRecords(playerId);
+                    if (!records.isEmpty()) {
+                        JsonObject latest = records.getLast();
+                        name = latest.has("playerName") ? latest.get("playerName").getAsString() : playerId.toString();
+                    }
+                    p.addProperty("name", name);
+                    p.addProperty("online", false);
+                    playersInfo.add(playerId.toString(), p);
+                }
+            }
+        } catch (Exception ignored) {}
+        
+        result.add("players", playersInfo);
+        return result;
+    }
+
+    public byte[] renderMapRegion(int rx, int rz, String dimensionId) {
+        int width = 128;
+        int height = 128;
+        java.awt.image.BufferedImage img = null;
+        
+        try {
+            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> key = 
+                net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.DIMENSION, 
+                    net.minecraft.resources.Identifier.parse(dimensionId)
+                );
+            net.minecraft.server.level.ServerLevel world = server.getLevel(key);
+            if (world == null) {
+                world = server.overworld();
+            }
+            
+            // Define cache path
+            java.nio.file.Path cacheDir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                .resolve("permaworld").resolve("mapcache").resolve(dimensionId.replace(":", "_"));
+            java.nio.file.Path cacheFile = cacheDir.resolve("region_" + rx + "_" + rz + ".png");
+            
+            if (java.nio.file.Files.exists(cacheFile)) {
+                try {
+                    img = javax.imageio.ImageIO.read(cacheFile.toFile());
+                } catch (Exception e) {
+                    net.serex.permaworld.Permaworld.LOGGER.warn("[Permaworld] Error reading map cache file: {}", cacheFile, e);
+                }
+            }
+            
+            if (img == null || img.getWidth() != width || img.getHeight() != height) {
+                img = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                // Initialize to fully transparent
+                for (int z = 0; z < height; z++) {
+                    for (int x = 0; x < width; x++) {
+                        img.setRGB(x, z, 0x00000000);
+                    }
+                }
+            }
+            
+            int startX = rx * 128;
+            int startZ = rz * 128;
+            
+            int[][] heightCache = new int[width][height];
+            boolean anyUpdates = false;
+            
+            int startY = 319;
+            if (dimensionId.contains("nether")) {
+                startY = 120;
+            }
+            
+            net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+            
+            for (int z = 0; z < height; z++) {
+                int globalZ = startZ + z;
+                int chunkZ = globalZ >> 4;
+                
+                for (int x = 0; x < width; x++) {
+                    int globalX = startX + x;
+                    int chunkX = globalX >> 4;
+                    
+                    if (!world.getChunkSource().hasChunk(chunkX, chunkZ)) {
+                        heightCache[x][z] = -999;
+                        continue;
+                    }
+                    
+                    anyUpdates = true;
+                    pos.set(globalX, startY, globalZ);
+                    net.minecraft.world.level.material.MapColor mapColor = net.minecraft.world.level.material.MapColor.NONE;
+                    
+                    while (pos.getY() > -64) {
+                        net.minecraft.world.level.block.state.BlockState state = world.getBlockState(pos);
+                        mapColor = state.getMapColor(world, pos);
+                        if (mapColor != net.minecraft.world.level.material.MapColor.NONE) {
+                            break;
+                        }
+                        pos.setY(pos.getY() - 1);
+                    }
+                    
+                    int y = pos.getY();
+                    heightCache[x][z] = y;
+                    
+                    int baseColor = 0xFF000000 | mapColor.col;
+                    img.setRGB(x, z, baseColor);
+                }
+            }
+            
+            if (anyUpdates) {
+                for (int z = 0; z < height; z++) {
+                    for (int x = 0; x < width; x++) {
+                        int currentY = heightCache[x][z];
+                        if (currentY == -999) continue;
+                        
+                        int prevY = currentY;
+                        if (x > 0 && z > 0 && heightCache[x - 1][z - 1] != -999) {
+                            prevY = heightCache[x - 1][z - 1];
+                        }
+                        
+                        int diff = currentY - prevY;
+                        if (diff != 0) {
+                            int color = img.getRGB(x, z);
+                            int a = (color >> 24) & 0xFF;
+                            int r = (color >> 16) & 0xFF;
+                            int g = (color >> 8) & 0xFF;
+                            int b = color & 0xFF;
+                            
+                            double factor = 1.0 + (diff * 0.08);
+                            factor = Math.max(0.6, Math.min(1.4, factor));
+                            
+                            r = (int) Math.min(255, r * factor);
+                            g = (int) Math.min(255, g * factor);
+                            b = (int) Math.min(255, b * factor);
+                            
+                            int shadedColor = (a << 24) | (r << 16) | (g << 8) | b;
+                            img.setRGB(x, z, shadedColor);
+                        }
+                    }
+                }
+                
+                try {
+                    java.nio.file.Files.createDirectories(cacheDir);
+                    javax.imageio.ImageIO.write(img, "png", cacheFile.toFile());
+                } catch (Exception e) {
+                    net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error writing map cache file: {}", cacheFile, e);
+                }
+            }
+            
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(img, "png", baos);
+            return baos.toByteArray();
+            
+        } catch (Exception e) {
+            net.serex.permaworld.Permaworld.LOGGER.error("[Permaworld] Error rendering map region rx={} rz={}", rx, rz, e);
+        }
+        return new byte[0];
+    }
+
+    private static double[] parseCoordsToBlock(String coords) {
+        if (coords == null || coords.isBlank()) {
+            return null;
+        }
+        try {
+            String clean = coords.replace("[", "").replace("]", "").trim();
+            String[] parts = clean.split(",");
+            if (parts.length == 2) {
+                int chunkX = Integer.parseInt(parts[0].trim());
+                int chunkZ = Integer.parseInt(parts[1].trim());
+                double blockX = chunkX * 16 + 8;
+                double blockZ = chunkZ * 16 + 8;
+                return new double[]{blockX, blockZ};
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

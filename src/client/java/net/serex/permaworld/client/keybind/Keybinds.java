@@ -20,6 +20,7 @@ public final class Keybinds {
     public static KeyMapping sortInventory;
     public static KeyMapping quickDropStack;
     public static KeyMapping slotLockModifier;
+    public static KeyMapping openConfig;
 
     private Keybinds() {
     }
@@ -43,6 +44,13 @@ public final class Keybinds {
                 "key.permaworld.slot_lock_modifier",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_LEFT_ALT,
+                CATEGORY
+        ));
+
+        openConfig = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.permaworld.open_config",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_O,
                 CATEGORY
         ));
     }

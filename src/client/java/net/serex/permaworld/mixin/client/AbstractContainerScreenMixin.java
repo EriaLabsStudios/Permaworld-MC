@@ -64,6 +64,17 @@ public abstract class AbstractContainerScreenMixin {
     private Button permaworld$quickDropButton;
 
     @Unique
+    private Button permaworld$draggedButton = null;
+    @Unique
+    private double permaworld$dragStartMouseX = 0;
+    @Unique
+    private double permaworld$dragStartMouseY = 0;
+    @Unique
+    private int permaworld$dragStartOffsetX = 0;
+    @Unique
+    private int permaworld$dragStartOffsetY = 0;
+
+    @Unique
     private final Set<Integer> permaworld$dragProcessedSlots = new HashSet<>();
 
     @Unique
@@ -119,13 +130,34 @@ public abstract class AbstractContainerScreenMixin {
         PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
         int buttonSize = Math.max(8, sort.buttonSize);
         int gap = Math.max(0, sort.buttonGap);
-        int totalWidth = buttonSize * 3 + gap * 2;
-        int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
+
+        int visibleCount = 0;
+        if (sort.showSortByName) visibleCount++;
+        if (sort.showSortByCount) visibleCount++;
+        if (sort.showSortByCategory) visibleCount++;
+
+        int totalWidth = visibleCount > 0 ? buttonSize * visibleCount + gap * (visibleCount - 1) : 0;
+        int startX = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
         int y = sortButtonY(buttonSize, sort);
 
-        permaworld$sortByNameButton = addSortButton(x, y, buttonSize, "A", SortMode.NAME);
-        permaworld$sortByCountButton = addSortButton(x + buttonSize + gap, y, buttonSize, "#", SortMode.COUNT);
-        permaworld$sortByCategoryButton = addSortButton(x + (buttonSize + gap) * 2, y, buttonSize, "T", SortMode.CATEGORY);
+        int currentX = startX;
+        if (sort.showSortByName) {
+            permaworld$sortByNameButton = addSortButton(currentX, y, buttonSize, "A", SortMode.NAME);
+            currentX += buttonSize + gap;
+        } else {
+            permaworld$sortByNameButton = null;
+        }
+        if (sort.showSortByCount) {
+            permaworld$sortByCountButton = addSortButton(currentX, y, buttonSize, "#", SortMode.COUNT);
+            currentX += buttonSize + gap;
+        } else {
+            permaworld$sortByCountButton = null;
+        }
+        if (sort.showSortByCategory) {
+            permaworld$sortByCategoryButton = addSortButton(currentX, y, buttonSize, "T", SortMode.CATEGORY);
+        } else {
+            permaworld$sortByCategoryButton = null;
+        }
     }
 
     @Unique
@@ -203,11 +235,20 @@ public abstract class AbstractContainerScreenMixin {
         PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
         int buttonSize = Math.max(8, sort.buttonSize);
         int gap = Math.max(0, sort.buttonGap);
-        int totalWidth = buttonSize * 3 + gap * 2;
-        
-        int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX - buttonSize - gap;
-        if (!ConfigManager.get().config().sort.enabled) {
+
+        int visibleCount = 0;
+        if (sort.enabled) {
+            if (sort.showSortByName) visibleCount++;
+            if (sort.showSortByCount) visibleCount++;
+            if (sort.showSortByCategory) visibleCount++;
+        }
+
+        int totalWidth = visibleCount > 0 ? (buttonSize * visibleCount + gap * (visibleCount - 1)) : 0;
+        int x;
+        if (visibleCount == 0 || !sort.enabled) {
             x = this.leftPos + this.imageWidth - buttonSize + sort.buttonOffsetX;
+        } else {
+            x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX - buttonSize - gap;
         }
         int y = sortButtonY(buttonSize, sort);
 
@@ -510,44 +551,131 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         // 2. Reposition Sort Buttons
-        if (ConfigManager.get().config().sort.enabled) {
-            PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
-            int buttonSize = Math.max(8, sort.buttonSize);
-            int gap = Math.max(0, sort.buttonGap);
-            int totalWidth = buttonSize * 3 + gap * 2;
-            int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
-            int y = sortButtonY(buttonSize, sort);
+        PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+        int buttonSize = Math.max(8, sort.buttonSize);
+        int gap = Math.max(0, sort.buttonGap);
 
-            if (permaworld$sortByNameButton != null) {
-                permaworld$sortByNameButton.setX(x);
+        int visibleCount = 0;
+        if (sort.enabled) {
+            if (sort.showSortByName) visibleCount++;
+            if (sort.showSortByCount) visibleCount++;
+            if (sort.showSortByCategory) visibleCount++;
+        }
+
+        int totalWidth = visibleCount > 0 ? (buttonSize * visibleCount + gap * (visibleCount - 1)) : 0;
+        int startX = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX;
+        int y = sortButtonY(buttonSize, sort);
+
+        if (sort.enabled) {
+            int currentX = startX;
+            if (sort.showSortByName && permaworld$sortByNameButton != null) {
+                permaworld$sortByNameButton.setX(currentX);
                 permaworld$sortByNameButton.setY(y);
+                currentX += buttonSize + gap;
             }
-            if (permaworld$sortByCountButton != null) {
-                permaworld$sortByCountButton.setX(x + buttonSize + gap);
+            if (sort.showSortByCount && permaworld$sortByCountButton != null) {
+                permaworld$sortByCountButton.setX(currentX);
                 permaworld$sortByCountButton.setY(y);
+                currentX += buttonSize + gap;
             }
-            if (permaworld$sortByCategoryButton != null) {
-                permaworld$sortByCategoryButton.setX(x + (buttonSize + gap) * 2);
+            if (sort.showSortByCategory && permaworld$sortByCategoryButton != null) {
+                permaworld$sortByCategoryButton.setX(currentX);
                 permaworld$sortByCategoryButton.setY(y);
             }
         }
 
         // 3. Reposition Quick Drop Button
         if (ConfigManager.get().config().quickDrop.enabled && ConfigManager.get().config().quickDrop.showButton) {
-            PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
-            int buttonSize = Math.max(8, sort.buttonSize);
-            int gap = Math.max(0, sort.buttonGap);
-            int totalWidth = buttonSize * 3 + gap * 2;
-            int x = this.leftPos + this.imageWidth - totalWidth + sort.buttonOffsetX - buttonSize - gap;
-            if (!ConfigManager.get().config().sort.enabled) {
+            int x;
+            if (visibleCount == 0 || !sort.enabled) {
                 x = this.leftPos + this.imageWidth - buttonSize + sort.buttonOffsetX;
+            } else {
+                x = startX - buttonSize - gap;
             }
-            int y = sortButtonY(buttonSize, sort);
 
             if (permaworld$quickDropButton != null) {
                 permaworld$quickDropButton.setX(x);
                 permaworld$quickDropButton.setY(y);
             }
+        }
+    }
+
+    @Unique
+    private boolean permaworld$isMouseOverButton(Button btn, double mouseX, double mouseY) {
+        if (btn == null || !btn.visible) return false;
+        return mouseX >= btn.getX() && mouseX < btn.getX() + btn.getWidth() &&
+               mouseY >= btn.getY() && mouseY < btn.getY() + btn.getHeight();
+    }
+
+    @Unique
+    private boolean permaworld$isPlayerInventoryScreen() {
+        String screenName = this.getClass().getSimpleName();
+        return screenName.equals("InventoryScreen");
+    }
+
+    @Unique
+    private int permaworld$getYOffset(PermaworldConfig.SortConfig sort) {
+        return permaworld$isPlayerInventoryScreen() ? sort.inventoryButtonOffsetY : sort.containerButtonOffsetY;
+    }
+
+    @Unique
+    private void permaworld$setYOffset(PermaworldConfig.SortConfig sort, int val) {
+        if (permaworld$isPlayerInventoryScreen()) {
+            sort.inventoryButtonOffsetY = val;
+        } else {
+            sort.containerButtonOffsetY = val;
+        }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void permaworld$layoutDrag$onClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+        if (!sort.enabled || !sort.layoutEditMode || event.button() != 0) {
+            return;
+        }
+
+        Button clicked = null;
+        if (permaworld$isMouseOverButton(permaworld$sortByNameButton, event.x(), event.y())) {
+            clicked = permaworld$sortByNameButton;
+        } else if (permaworld$isMouseOverButton(permaworld$sortByCountButton, event.x(), event.y())) {
+            clicked = permaworld$sortByCountButton;
+        } else if (permaworld$isMouseOverButton(permaworld$sortByCategoryButton, event.x(), event.y())) {
+            clicked = permaworld$sortByCategoryButton;
+        } else if (permaworld$isMouseOverButton(permaworld$quickDropButton, event.x(), event.y())) {
+            clicked = permaworld$quickDropButton;
+        }
+
+        if (clicked != null) {
+            permaworld$draggedButton = clicked;
+            permaworld$dragStartMouseX = event.x();
+            permaworld$dragStartMouseY = event.y();
+            permaworld$dragStartOffsetX = sort.buttonOffsetX;
+            permaworld$dragStartOffsetY = permaworld$getYOffset(sort);
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void permaworld$layoutDrag$onDrag(MouseButtonEvent event, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
+        if (permaworld$draggedButton != null) {
+            PermaworldConfig.SortConfig sort = ConfigManager.get().config().sort;
+            double dx = event.x() - permaworld$dragStartMouseX;
+            double dy = event.y() - permaworld$dragStartMouseY;
+
+            sort.buttonOffsetX = permaworld$dragStartOffsetX + (int) dx;
+            permaworld$setYOffset(sort, permaworld$dragStartOffsetY + (int) dy);
+
+            // Update on screen instantly
+            permaworld$slotLock$updateButtonPositions();
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "mouseReleased", at = @At("HEAD"))
+    private void permaworld$layoutDrag$onRelease(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (permaworld$draggedButton != null) {
+            permaworld$draggedButton = null;
+            ConfigManager.get().save(); // Persist final coordinates
         }
     }
 }
