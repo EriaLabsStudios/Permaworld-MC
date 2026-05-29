@@ -22,7 +22,7 @@ public final class WebDtos {
         return json;
     }
 
-    public static JsonObject playerSummary(String uuid, String playerName, String lastReason, String lastTimestamp, int recordCount) {
+    public static JsonObject playerSummary(String uuid, String playerName, String lastReason, String lastTimestamp, int recordCount, long logSizeBytes) {
         JsonObject json = new JsonObject();
         json.addProperty("uuid", uuid);
         json.addProperty("playerName", playerName);
@@ -30,7 +30,16 @@ public final class WebDtos {
         json.addProperty("lastReasonKey", normalize(lastReason));
         json.addProperty("lastTimestamp", lastTimestamp);
         json.addProperty("recordCount", recordCount);
+        json.addProperty("logSizeBytes", logSizeBytes);
+        json.addProperty("logSize", formatSize(logSizeBytes));
         return json;
+    }
+
+    private static String formatSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        char pre = "KMGTPE".charAt(exp - 1);
+        return String.format(java.util.Locale.US, "%.1f %cB", bytes / Math.pow(1024, exp), pre);
     }
 
     public static JsonObject stat(String key, String label, int value, String formatted) {

@@ -7,6 +7,8 @@ const state = {
   records: [],
   selectedRecord: null,
   stats: null,
+  tab: "JUGADORES",
+  mapVisiblePlayers: null,
 };
 
 const adminSelect = document.querySelector("#adminSelect");
@@ -44,10 +46,10 @@ async function boot() {
 
   if (foundPlayer) {
     state.selectedPlayer = foundPlayer;
-    myUserSelect.value = savedUserUuid;
+    if (myUserSelect) myUserSelect.value = savedUserUuid;
   } else {
     state.selectedPlayer = state.players[0] ?? null;
-    myUserSelect.value = state.selectedPlayer ? state.selectedPlayer.uuid : "";
+    if (myUserSelect) myUserSelect.value = state.selectedPlayer ? state.selectedPlayer.uuid : "";
   }
 
   // Load glossy opacity from localStorage
@@ -62,35 +64,35 @@ async function boot() {
   renderPlayers();
   bindEvents();
 
-  if (state.selectedPlayer) {
-    await loadCurrentView();
-  } else {
-    recordList.innerHTML = '<div class="empty">No players with records yet.</div>';
-  }
+  await switchTab("JUGADORES");
   initTooltip();
 }
 
 function bindEvents() {
-  adminSelect.addEventListener("change", () => {
-    state.selectedAdmin = adminSelect.value;
-  });
-  myUserSelect.addEventListener("change", async () => {
-    const selectedUuid = myUserSelect.value;
-    if (selectedUuid) {
-      localStorage.setItem("permaworld_my_user", selectedUuid);
-      const player = state.players.find((p) => p.uuid === selectedUuid);
-      if (player) {
-        state.selectedPlayer = player;
+  if (adminSelect) {
+    adminSelect.addEventListener("change", () => {
+      state.selectedAdmin = adminSelect.value;
+    });
+  }
+  if (myUserSelect) {
+    myUserSelect.addEventListener("change", async () => {
+      const selectedUuid = myUserSelect.value;
+      if (selectedUuid) {
+        localStorage.setItem("permaworld_my_user", selectedUuid);
+        const player = state.players.find((p) => p.uuid === selectedUuid);
+        if (player) {
+          state.selectedPlayer = player;
+        }
+      } else {
+        localStorage.removeItem("permaworld_my_user");
+        if (state.players[0]) {
+          state.selectedPlayer = state.players[0];
+        }
       }
-    } else {
-      localStorage.removeItem("permaworld_my_user");
-      if (state.players[0]) {
-        state.selectedPlayer = state.players[0];
-      }
-    }
-    renderPlayers();
-    await loadCurrentView();
-  });
+      renderPlayers();
+      await loadCurrentView();
+    });
+  }
   
   const glossySlider = document.querySelector("#glossySlider");
   if (glossySlider) {
@@ -113,9 +115,19 @@ function bindEvents() {
     });
     await loadCurrentView();
   });
+
+  const globalTabs = document.querySelector(".global-tabs");
+  if (globalTabs) {
+    globalTabs.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-tab]");
+      if (!button) return;
+      await switchTab(button.dataset.tab);
+    });
+  }
 }
 
 function renderAdmins() {
+  if (!adminSelect) return;
   adminSelect.innerHTML = "";
   for (const admin of state.admins) {
     const option = document.createElement("option");
@@ -126,6 +138,7 @@ function renderAdmins() {
 }
 
 function renderMyUsers() {
+  if (!myUserSelect) return;
   myUserSelect.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -155,12 +168,12 @@ function renderPlayers() {
       <img class="player-head" src="https://minotar.net/helm/${player.playerName}/32.png" alt="${player.playerName}">
       <div class="player-info-wrapper">
         <h3>${player.playerName}</h3>
-        <div class="record-meta">${player.recordCount} logs · ${player.lastReason}</div>
+        <div class="record-meta">${player.recordCount} logs (${player.logSize}) · ${player.lastReason}</div>
       </div>
     `;
     card.addEventListener("click", async () => {
       state.selectedPlayer = player;
-      myUserSelect.value = player.uuid;
+      if (myUserSelect) myUserSelect.value = player.uuid;
       localStorage.setItem("permaworld_my_user", player.uuid);
       renderPlayers();
       await loadCurrentView();
@@ -174,11 +187,73 @@ async function loadCurrentView() {
     await loadStats();
     return;
   }
+  if (state.filter === "MAP") {
+    await loadMapView();
+    return;
+  }
   if (state.filter === "ADMIN") {
     await loadAdminConsole();
     return;
   }
   await loadRecords();
+}
+
+async function switchTab(tabName) {
+  state.tab = tabName;
+  
+  if (state.mapUpdateInterval) {
+    clearInterval(state.mapUpdateInterval);
+    state.mapUpdateInterval = null;
+  }
+  if (state.mapRefreshInterval) {
+    clearInterval(state.mapRefreshInterval);
+    state.mapRefreshInterval = null;
+  }
+
+  const layout = document.querySelector(".layout");
+  const rail = document.querySelector(".rail");
+  
+  rail.style.display = "";
+  document.querySelector(".rail .panel-title").textContent = "Players";
+  playerSearch.style.display = "";
+  
+  document.querySelectorAll(".global-tabs .tab-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.tab === tabName);
+  });
+
+  if (tabName === "JUGADORES") {
+    layout.className = "layout view-jugadores";
+    renderPlayers();
+    
+    // Asynchronously refresh player sizes and log counts in the background (flicker-free!)
+    loadJson("/api/players").then(playersPayload => {
+      state.players = playersPayload.players ?? [];
+      renderPlayers();
+    }).catch(e => console.warn("Failed to refresh players payload:", e));
+    
+    if (state.filter === "MAP" || state.filter === "ADMIN") {
+      state.filter = "ALL";
+    }
+    
+    document.querySelectorAll("#filterBar .mc-button").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.filter === state.filter);
+    });
+
+    if (state.selectedPlayer) {
+      await loadCurrentView();
+    } else {
+      recordList.innerHTML = '<div class="empty">No players with records yet.</div>';
+    }
+  } else if (tabName === "MAPA") {
+    layout.className = "layout view-mapa";
+    state.filter = "MAP";
+    await loadMapView();
+  } else if (tabName === "ADMIN") {
+    layout.className = "layout view-admin";
+    rail.style.display = "none";
+    state.filter = "ADMIN";
+    await loadAdminConsole();
+  }
 }
 
 async function loadRecords() {
@@ -1387,4 +1462,1180 @@ function formatStructureName(id) {
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+/* ==========================================
+   INTERACTIVE CANVAS MAP GRAPHICS ENGINE
+   ========================================== */
+
+let mapCanvas = null;
+let mapCtx = null;
+let mapZoom = 1.0;
+let mapPanX = 0;
+let mapPanY = 0;
+let mapIsDragging = false;
+let mapLastMouseX = 0;
+let mapLastMouseY = 0;
+let mapActiveDimension = "minecraft:overworld";
+let mapHovered = null;
+let mapSelected = null;
+let mapData = { paths: {}, structures: [], players: {} };
+const skinImages = {}; // Face images cache
+const regionImages = {}; // Terrain tiles cache
+
+const PALETTE = [
+  "#3498db", // Blue
+  "#2ecc71", // Green
+  "#e74c3c", // Red
+  "#f1c40f", // Gold
+  "#9b59b6", // Purple
+  "#e67e22", // Orange
+  "#1abc9c", // Aqua
+  "#e84393", // Pink
+  "#fdcb6e", // Warm Gold
+  "#6c5ce7", // Soft Indigo
+  "#00cec9", // Teal
+  "#ff7675", // Coral
+];
+
+function getPlayerColor(uuid) {
+  if (!uuid) return "#ffffff";
+  let hash = 0;
+  for (let i = 0; i < uuid.length; i++) {
+    hash = uuid.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % PALETTE.length;
+  return PALETTE[index];
+}
+
+function getPlayerFace(playerName, callback) {
+  if (skinImages[playerName]) {
+    if (skinImages[playerName].loaded) {
+      callback(skinImages[playerName]);
+    } else {
+      skinImages[playerName].listeners.push(callback);
+    }
+    return;
+  }
+  const img = new Image();
+  img.src = `https://minotar.net/helm/${playerName}/16.png`;
+  img.loaded = false;
+  img.listeners = [callback];
+  img.onload = () => {
+    img.loaded = true;
+    img.listeners.forEach((cb) => cb(img));
+    img.listeners = [];
+    requestRender();
+  };
+  img.onerror = () => {
+    img.loaded = true;
+    img.listeners = [];
+  };
+  skinImages[playerName] = img;
+}
+
+async function loadMapView() {
+  recordList.classList.remove("stats-view");
+  recordList.classList.remove("advancement-view");
+  recordList.classList.remove("admin-view");
+  
+  if (state.mapUpdateInterval) {
+    clearInterval(state.mapUpdateInterval);
+    state.mapUpdateInterval = null;
+  }
+  if (state.mapRefreshInterval) {
+    clearInterval(state.mapRefreshInterval);
+    state.mapRefreshInterval = null;
+  }
+  
+  // Render layout skeletons
+  recordList.innerHTML = `
+    <div class="map-view-container">
+      <div class="map-viewport">
+        <canvas id="mapCanvas"></canvas>
+        <div class="map-hud">
+          <div id="mapCoords" class="map-coords">X: 0, Z: 0</div>
+          <div class="map-hud-controls">
+            <button id="mapZoomIn" class="mc-button map-control-btn">+</button>
+            <button id="mapZoomOut" class="mc-button map-control-btn">-</button>
+            <button id="mapReset" class="mc-button map-control-btn">⊙</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Render Map Controls inside the left rail!
+  document.querySelector(".rail .panel-title").textContent = "Mapa / Capas";
+  playerSearch.style.display = "none";
+  
+  playerList.innerHTML = `
+    <div class="map-sidebar-options" style="padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Dimensión Section -->
+      <div class="map-sidebar-section">
+        <div class="panel-section-title" style="margin-bottom: 8px;">Dimensión</div>
+        <div class="dim-selector-grid" id="mapDimSelector" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px;">
+          <!-- Populating dynamically -->
+        </div>
+      </div>
+      
+      <!-- Capas Visibles Section -->
+      <div class="map-sidebar-section">
+        <div class="panel-section-title" style="margin-bottom: 8px;">Capas Visibles</div>
+        <div class="layers-check-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chkTerrain" checked>
+            <span>Foto Aérea 📷</span>
+          </label>
+          <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chkPaths" checked>
+            <span>Trazados 🗺</span>
+          </label>
+          <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chkStructures" checked>
+            <span>Estructuras ◈</span>
+          </label>
+          <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chkDeaths" checked>
+            <span>Muertes 💀</span>
+          </label>
+          <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chkOnline" checked>
+            <span>Jugadores Live 🟢</span>
+          </label>
+        </div>
+      </div>
+      
+      <!-- Trayectos de Jugadores Section -->
+      <div class="map-sidebar-section">
+        <div class="panel-section-title" style="margin-bottom: 8px;">Ver Caminos de:</div>
+        <div class="map-player-toggles-header" style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button class="mc-button font-small" id="mapPlayersAll" style="flex: 1; padding: 4px 0; font-size: 12px;">Todos</button>
+          <button class="mc-button font-small" id="mapPlayersNone" style="flex: 1; padding: 4px 0; font-size: 12px;">Ninguno</button>
+        </div>
+        <div id="mapPlayerChecklist" class="map-player-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+          <!-- Dynamically populated checklist -->
+        </div>
+      </div>
+      
+    </div>
+  `;
+
+  // Render Selection panel in the right sidebar (recordDetail)
+  recordDetail.innerHTML = `<div class="map-sidebar"><div class="empty-selection">Cargando datos de mapa...</div></div>`;
+
+  // Initialize visible players set if null
+  if (!state.mapVisiblePlayers) {
+    state.mapVisiblePlayers = new Set(state.players.map(p => p.uuid));
+  }
+
+  // Populate checklist
+  renderMapPlayerChecklist();
+
+  // Fetch map consolidated dataset
+  try {
+    const rawData = await loadJson("/api/map/data");
+    mapData = rawData;
+    renderMapSidebar();
+    await renderDynamicDimensions();
+  } catch (err) {
+    console.error("Error loading map data:", err);
+    recordList.innerHTML = `<div class="status error" style="margin:20px;">Error al cargar datos del mapa: ${err.message}</div>`;
+    return;
+  }
+
+  mapCanvas = document.querySelector("#mapCanvas");
+  if (!mapCanvas) return;
+  mapCtx = mapCanvas.getContext("2d");
+  
+  // Fit to screen (deferred slightly to ensure browser DOM layout has fully completed)
+  setTimeout(() => {
+    resizeCanvas();
+    centerOnSelectedPlayer();
+    requestRender();
+  }, 100);
+  window.addEventListener("resize", resizeCanvas);
+
+  mapZoom = 1.0;
+  mapPanX = 0;
+  mapPanY = 0;
+  mapActiveDimension = "minecraft:overworld";
+  mapHovered = null;
+  mapSelected = null;
+
+  centerOnSelectedPlayer();
+  requestRender();
+  setupMapEvents();
+
+  // Setup Live Online tracker (3s loop)
+  state.mapUpdateInterval = setInterval(async () => {
+    try {
+      if (state.filter !== "MAP") {
+        clearInterval(state.mapUpdateInterval);
+        state.mapUpdateInterval = null;
+        return;
+      }
+      
+      const status = await loadJson("/api/admin/status");
+      if (status.online && status.players) {
+        for (const p of status.players) {
+          if (!mapData.players[p.uuid]) {
+            mapData.players[p.uuid] = {};
+          }
+          mapData.players[p.uuid].name = p.name;
+          mapData.players[p.uuid].online = true;
+          mapData.players[p.uuid].dimension = p.dimension;
+          mapData.players[p.uuid].x = p.x;
+          mapData.players[p.uuid].y = p.y;
+          mapData.players[p.uuid].z = p.z;
+        }
+        
+        const activeUuids = status.players.map((p) => p.uuid);
+        for (const uuid in mapData.players) {
+          if (!activeUuids.includes(uuid)) {
+            mapData.players[uuid].online = false;
+          }
+        }
+        requestRender();
+      }
+    } catch (e) {
+      console.warn("Map live tracking failed:", e);
+    }
+  }, 3000);
+
+  // Setup Map Data full refresh loop (every 10 seconds)
+  state.mapRefreshInterval = setInterval(async () => {
+    try {
+      if (state.filter !== "MAP") {
+        clearInterval(state.mapRefreshInterval);
+        state.mapRefreshInterval = null;
+        return;
+      }
+      const rawData = await loadJson("/api/map/data");
+      if (rawData) {
+        mapData.paths = rawData.paths || {};
+        mapData.structures = rawData.structures || [];
+        if (rawData.players) {
+          for (const uuid in rawData.players) {
+            if (!mapData.players[uuid]) {
+              mapData.players[uuid] = {};
+            }
+            Object.assign(mapData.players[uuid], rawData.players[uuid]);
+          }
+        }
+        
+        renderMapSidebar();
+        
+        // Refresh all currently cached visible region images in the background (flicker-free!)
+        for (const key in regionImages) {
+          const parts = key.split(",");
+          if (parts.length === 3) {
+            const rx = parts[0];
+            const rz = parts[1];
+            const dim = parts[2];
+            
+            const img = new Image();
+            img.src = `/api/map/region?rx=${rx}&rz=${rz}&dim=${encodeURIComponent(dim)}&_cb=${Date.now()}`;
+            img.onload = () => {
+              if (regionImages[key]) {
+                regionImages[key].image = img;
+                regionImages[key].loaded = true;
+                regionImages[key].failed = false;
+                requestRender();
+              }
+            };
+          }
+        }
+        
+        requestRender();
+      }
+    } catch (e) {
+      console.warn("Map periodic refresh failed:", e);
+    }
+  }, 10000);
+}
+
+function renderMapPlayerChecklist() {
+  const checklistContainer = document.querySelector("#mapPlayerChecklist");
+  if (!checklistContainer) return;
+
+  checklistContainer.innerHTML = state.players.map(p => {
+    const isChecked = state.mapVisiblePlayers.has(p.uuid);
+    const color = getPlayerColor(p.uuid);
+    return `
+      <label class="mc-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" class="chk-map-player" data-uuid="${p.uuid}" ${isChecked ? 'checked' : ''}>
+        <span class="player-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${color};"></span>
+        <span style="font-size: 13px;">${p.playerName}</span>
+      </label>
+    `;
+  }).join("");
+  
+  checklistContainer.querySelectorAll(".chk-map-player").forEach(chk => {
+    chk.addEventListener("change", () => {
+      const uuid = chk.dataset.uuid;
+      if (chk.checked) {
+        state.mapVisiblePlayers.add(uuid);
+      } else {
+        state.mapVisiblePlayers.delete(uuid);
+      }
+      requestRender();
+    });
+  });
+
+  document.querySelector("#mapPlayersAll")?.addEventListener("click", () => {
+    state.players.forEach(p => state.mapVisiblePlayers.add(p.uuid));
+    document.querySelectorAll(".chk-map-player").forEach(chk => chk.checked = true);
+    requestRender();
+  });
+  
+  document.querySelector("#mapPlayersNone")?.addEventListener("click", () => {
+    state.mapVisiblePlayers.clear();
+    document.querySelectorAll(".chk-map-player").forEach(chk => chk.checked = false);
+    requestRender();
+  });
+}
+
+function setupMapEvents() {
+  if (!mapCanvas) return;
+  
+  mapCanvas.addEventListener("mousedown", (e) => {
+    mapIsDragging = true;
+    mapLastMouseX = e.clientX;
+    mapLastMouseY = e.clientY;
+  });
+
+  document.addEventListener("mousemove", handleMapMouseMove);
+  document.addEventListener("mouseup", handleMapMouseUp);
+
+  mapCanvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = mapCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const factor = e.deltaY < 0 ? 1.2 : (1.0 / 1.2);
+    changeZoom(factor, mouseX, mouseY);
+  });
+
+  document.querySelector("#mapZoomIn").addEventListener("click", () => {
+    changeZoom(1.3, mapCanvas.width / 2, mapCanvas.height / 2);
+  });
+  
+  document.querySelector("#mapZoomOut").addEventListener("click", () => {
+    changeZoom(1.0 / 1.3, mapCanvas.width / 2, mapCanvas.height / 2);
+  });
+  
+  document.querySelector("#mapReset").addEventListener("click", () => {
+    mapZoom = 1.0;
+    mapPanX = 0;
+    mapPanY = 0;
+    centerOnSelectedPlayer();
+    requestRender();
+  });
+
+
+
+  ["chkTerrain", "chkPaths", "chkStructures", "chkDeaths", "chkOnline"].forEach((id) => {
+    const chk = document.querySelector("#" + id);
+    if (chk) {
+      chk.addEventListener("change", () => {
+        requestRender();
+      });
+    }
+  });
+}
+
+function handleMapMouseMove(e) {
+  if (!mapCanvas || state.filter !== "MAP") return;
+  
+  const rect = mapCanvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  
+  if (mapIsDragging) {
+    const dx = e.clientX - mapLastMouseX;
+    const dy = e.clientY - mapLastMouseY;
+    mapPanX += dx;
+    mapPanY += dy;
+    mapLastMouseX = e.clientX;
+    mapLastMouseY = e.clientY;
+    
+    const mcCoords = canvasToMc(mouseX, mouseY);
+    updateCoordsHUD(mcCoords.x, mcCoords.z);
+    
+    requestRender();
+  } else {
+    const mcCoords = canvasToMc(mouseX, mouseY);
+    updateCoordsHUD(mcCoords.x, mcCoords.z);
+    
+    const item = checkHoverProximity(mouseX, mouseY);
+    const tooltip = document.querySelector("#mcTooltip");
+    
+    if (item) {
+      mapHovered = item;
+      mapCanvas.style.cursor = "pointer";
+      
+      if (tooltip) {
+        tooltip.innerHTML = getTooltipHTML(item);
+        tooltip.style.display = "block";
+      }
+    } else {
+      mapHovered = null;
+      mapCanvas.style.cursor = "grab";
+      if (tooltip) {
+        tooltip.style.display = "none";
+      }
+    }
+  }
+}
+
+function handleMapMouseUp(e) {
+  if (state.filter !== "MAP") return;
+  if (mapIsDragging) {
+    mapIsDragging = false;
+    requestRender();
+  } else {
+    if (mapHovered) {
+      mapSelected = mapHovered;
+      renderMapSidebar();
+    } else {
+      if (mapCanvas) {
+        const rect = mapCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        if (clickX >= 0 && clickX <= mapCanvas.width && clickY >= 0 && clickY <= mapCanvas.height) {
+          mapSelected = null;
+          renderMapSidebar();
+        }
+      }
+    }
+    requestRender();
+  }
+}
+
+function checkHoverProximity(mouseX, mouseY) {
+  if (!mapData) return null;
+  
+  const showOnline = document.querySelector("#chkOnline")?.checked;
+  const showStructures = document.querySelector("#chkStructures")?.checked;
+  const showDeaths = document.querySelector("#chkDeaths")?.checked;
+  const showPaths = document.querySelector("#chkPaths")?.checked;
+
+  // 1. Online live players
+  if (showOnline && mapData.players) {
+    for (const uuid in mapData.players) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const p = mapData.players[uuid];
+      if (p.online && p.dimension === mapActiveDimension && p.x !== undefined) {
+        const cPos = mcToCanvas(p.x, p.z);
+        const dist = Math.hypot(mouseX - cPos.x, mouseY - cPos.y);
+        if (dist <= 16) {
+          return { type: "online_player", uuid, data: p };
+        }
+      }
+    }
+  }
+
+  // 2. Structures
+  if (showStructures && mapData.structures) {
+    for (const struct of mapData.structures) {
+      if (struct.dimension === mapActiveDimension && struct.x !== undefined) {
+        const cPos = mcToCanvas(struct.x, struct.z);
+        const dist = Math.hypot(mouseX - cPos.x, mouseY - cPos.y);
+        if (dist <= 12) {
+          return { type: "structure", data: struct };
+        }
+      }
+    }
+  }
+
+  // 3. Deaths
+  if (showDeaths && mapData.paths) {
+    for (const uuid in mapData.paths) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const pts = mapData.paths[uuid];
+      for (const pt of pts) {
+        if (pt.type === "DEATH" && pt.dimension === mapActiveDimension) {
+          const cPos = mcToCanvas(pt.x, pt.z);
+          const dist = Math.hypot(mouseX - cPos.x, mouseY - cPos.y);
+          if (dist <= 12) {
+            const player = mapData.players[uuid] || { name: "Jugador" };
+            return { type: "death", uuid, playerName: player.name, data: pt };
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Path Points exploration
+  if (showPaths && mapData.paths) {
+    for (const uuid in mapData.paths) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const pts = mapData.paths[uuid];
+      for (const pt of pts) {
+        if (pt.dimension === mapActiveDimension) {
+          const cPos = mcToCanvas(pt.x, pt.z);
+          const dist = Math.hypot(mouseX - cPos.x, mouseY - cPos.y);
+          if (dist <= 8) {
+            const player = mapData.players[uuid] || { name: "Jugador" };
+            return { type: "path_point", uuid, playerName: player.name, data: pt };
+          }
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+function getTooltipHTML(item) {
+  if (item.type === "online_player") {
+    return `
+      <div style="padding: 4px; font-family: var(--font-mono);">
+        <h4 style="color: var(--gold-1); margin: 0 0 4px; font-size:13px;">👤 ${item.data.name}</h4>
+        <p style="margin: 0; font-size:11px; color:#55ff55;">● JUGADOR LIVE</p>
+        <p style="margin: 4px 0 0; font-size:11px; color:var(--stone-4);">Pos: ${Math.round(item.data.x)}, ${Math.round(item.data.z)}</p>
+      </div>
+    `;
+  }
+  if (item.type === "structure") {
+    return `
+      <div style="padding: 4px; font-family: var(--font-mono);">
+        <h4 style="color: var(--gold-1); margin: 0 0 4px; font-size:13px;">◈ ${item.data.name}</h4>
+        <p style="margin: 0; font-size:11px; color:#bdc2c8;">Estructura Descubierta</p>
+        <p style="margin: 4px 0 0; font-size:11px; color:var(--stone-4);">Por: <span style="color:#fff;">${item.data.discoveredBy}</span></p>
+        <p style="margin: 2px 0 0; font-size:11px; color:var(--stone-4);">Pos: ${Math.round(item.data.x)}, ${Math.round(item.data.z)}</p>
+      </div>
+    `;
+  }
+  if (item.type === "death") {
+    return `
+      <div style="padding: 4px; font-family: var(--font-mono);">
+        <h4 style="color: #ff5555; margin: 0 0 4px; font-size:13px;">💀 Muerte de ${item.playerName}</h4>
+        <p style="margin: 0; font-size:11px; color:var(--stone-4);">${new Date(item.data.timestamp).toLocaleString()}</p>
+        <p style="margin: 4px 0 0; font-size:11px; color:var(--stone-4);">Pos: ${Math.round(item.data.x)}, ${Math.round(item.data.z)}</p>
+      </div>
+    `;
+  }
+  if (item.type === "path_point") {
+    return `
+      <div style="padding: 4px; font-family: var(--font-mono);">
+        <h4 style="color: var(--gold-1); margin: 0 0 4px; font-size:13px;">🗺 Trazo de ${item.playerName}</h4>
+        <p style="margin: 0; font-size:11px; color:var(--stone-4);">${new Date(item.data.timestamp).toLocaleString()}</p>
+        <p style="margin: 4px 0 0; font-size:11px; color:var(--stone-3);">Mapeado en exploración</p>
+      </div>
+    `;
+  }
+  return "";
+}
+
+function renderMapSidebar() {
+  const sidebarContainer = document.querySelector("#recordDetail");
+  if (!sidebarContainer || state.filter !== "MAP") return;
+
+  const activeDimName = mapActiveDimension.includes(":") ? mapActiveDimension.split(":")[1] : mapActiveDimension;
+  const filteredStructs = (mapData.structures || []).filter(s => s.dimension === mapActiveDimension);
+
+  let structuresListHtml = "";
+  if (filteredStructs.length === 0) {
+    structuresListHtml = `<div class="empty-small" style="font-size:12px; color:var(--stone-4); padding: 8px 12px; text-align:center; background:rgba(0,0,0,0.15); border:2px dashed rgba(255,255,255,0.05);">Ninguna estructura descubierta.</div>`;
+  } else {
+    structuresListHtml = `
+      <div class="sidebar-struct-list" style="display:flex; flex-direction:column; gap:6px; max-height: 180px; overflow-y:auto; padding-right:4px;">
+        ${filteredStructs.map(struct => {
+          const isSelected = mapSelected && mapSelected.type === "structure" && mapSelected.data.coords === struct.coords;
+          return `
+            <button class="mc-button struct-list-item ${isSelected ? 'is-active' : ''}" 
+                    data-coords="${struct.coords}"
+                    style="display:flex; align-items:center; justify-content:space-between; text-align:left; padding:6px 10px; font-size:12px; width:100%;">
+              <span>◈ ${struct.name}</span>
+              <span style="font-size:10px; opacity:0.8; font-family:var(--font-mono);">${Math.round(struct.x)}, ${Math.round(struct.z)}</span>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  sidebarContainer.innerHTML = `
+    <div class="map-sidebar" style="display:flex; flex-direction:column; gap:16px;">
+      
+      <!-- Section 1: Estructuras -->
+      <div class="map-sidebar-section">
+        <div class="panel-section-title" style="color: var(--gold-1); text-shadow: 1px 1px 0 #000; margin-bottom:8px; font-size:14px; font-weight:bold; text-transform:uppercase;">
+          Estructuras (${activeDimName})
+        </div>
+        ${structuresListHtml}
+      </div>
+      
+      <!-- Section 2: Selección -->
+      <div class="map-sidebar-section last-section" style="border-top: 2px solid rgba(255, 255, 255, 0.05); padding-top:12px;">
+        <div class="panel-section-title" id="mapSelectionTitle" style="color: var(--gold-1); text-shadow: 1px 1px 0 #000; margin-bottom:8px; font-size:14px; font-weight:bold; text-transform:uppercase;">
+          Selección
+        </div>
+        <div id="mapSelectionContent" class="map-selection-content">
+          <!-- Selection details populated dynamically -->
+        </div>
+      </div>
+      
+    </div>
+  `;
+
+  // Bind clicks to structure list buttons
+  sidebarContainer.querySelectorAll(".struct-list-item").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const coords = btn.dataset.coords;
+      const struct = filteredStructs.find(s => s.coords === coords);
+      if (struct) {
+        centerOn(struct.x, struct.z);
+        mapSelected = { type: "structure", data: struct };
+        sidebarContainer.querySelectorAll(".struct-list-item").forEach(b => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        renderSelectionDetail(mapSelected);
+        requestRender();
+      }
+    });
+  });
+
+  // Restore current selection view if any
+  if (mapSelected) {
+    renderSelectionDetail(mapSelected);
+  } else {
+    const content = sidebarContainer.querySelector("#mapSelectionContent");
+    if (content) {
+      content.innerHTML = `<div class="empty-selection">Haz clic en un trazo, estructura, calavera o avatar en el mapa para ver sus detalles.</div>`;
+    }
+  }
+}
+
+async function renderDynamicDimensions() {
+  let dims = ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"];
+  try {
+    dims = await loadJson("/api/dimensions");
+  } catch (e) {
+    console.warn("Failed to load dimensions list:", e);
+  }
+
+  const dimSelector = document.querySelector("#mapDimSelector");
+  if (!dimSelector) return;
+
+  dimSelector.innerHTML = dims.map(dim => {
+    const isActive = dim === mapActiveDimension;
+    let label = dim.includes(":") ? dim.split(":")[1] : dim;
+    label = label.replace("the_", "").replace("_", " ");
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+    
+    let btnClass = "dim-btn";
+    if (dim.includes("overworld")) btnClass += " is-overworld";
+    else if (dim.includes("nether")) btnClass += " is-nether";
+    else if (dim.includes("end")) btnClass += " is-end";
+    else btnClass += " is-custom";
+    
+    if (isActive) btnClass += " active";
+    
+    return `<button class="mc-button ${btnClass}" data-dim="${dim}" style="padding: 4px; font-size: 13px;">${label}</button>`;
+  }).join("");
+
+  dimSelector.querySelectorAll(".dim-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      dimSelector.querySelectorAll(".dim-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      mapActiveDimension = btn.dataset.dim;
+      mapHovered = null;
+      mapSelected = null;
+      renderMapSidebar();
+      centerOnSelectedPlayer();
+      requestRender();
+    });
+  });
+}
+
+function renderSelectionDetail(item) {
+  const content = document.querySelector("#mapSelectionContent");
+  if (!content) return;
+  
+  let html = "";
+  if (item.type === "online_player") {
+    html = `
+      <div class="map-selection-card">
+        <h4>👤 ${item.data.name} <span class="dim-badge overworld" style="background:#55ff55; color:#000;">Live</span></h4>
+        <p><strong>Posición:</strong> ${Math.round(item.data.x)}, ${Math.round(item.data.y)}, ${Math.round(item.data.z)}</p>
+        <p><strong>Dimensión:</strong> <span class="highlight">${item.data.dimension.split(":")[1] || item.data.dimension}</span></p>
+        <p style="color:#85c43f; font-weight:bold; margin-top:10px;">🟢 Conectado actualmente al mundo de Permaworld.</p>
+      </div>
+    `;
+  } else if (item.type === "structure") {
+    const dim = item.data.dimension.includes("nether") ? "nether" : (item.data.dimension.includes("end") ? "end" : "overworld");
+    html = `
+      <div class="map-selection-card">
+        <h4>◈ ${item.data.name} <span class="dim-badge ${dim}">${dim}</span></h4>
+        <p><strong>ID Oficial:</strong> <code>${item.data.structureId}</code></p>
+        <p><strong>Coordenadas Chunks:</strong> ${item.data.coords}</p>
+        <p><strong>Ubicación Bloques:</strong> X: ${Math.round(item.data.x)}, Y: ${Math.round(item.data.y)}, Z: ${Math.round(item.data.z)}</p>
+        <p><strong>Descubierto por:</strong> <span class="highlight">${item.data.discoveredBy}</span></p>
+        <p><strong>Fecha de Visita:</strong> ${new Date(item.data.timestamp).toLocaleString()}</p>
+      </div>
+    `;
+  } else if (item.type === "death") {
+    html = `
+      <div class="map-selection-card">
+        <h4 style="color:#ff5555;">💀 Registro de Muerte</h4>
+        <p><strong>Jugador:</strong> <span class="highlight">${item.playerName}</span></p>
+        <p><strong>Ubicación:</strong> X: ${Math.round(item.data.x)}, Y: ${Math.round(item.data.y)}, Z: ${Math.round(item.data.z)}</p>
+        <p><strong>Fecha y hora:</strong> ${new Date(item.data.timestamp).toLocaleString()}</p>
+        <p style="color:#ff7777; font-size:9px; margin-top:8px;">⚠️ El jugador perdió su equipamiento en esta coordenada de muerte.</p>
+      </div>
+    `;
+  } else if (item.type === "path_point") {
+    html = `
+      <div class="map-selection-card">
+        <h4>🗺 Exploración Registrada</h4>
+        <p><strong>Jugador:</strong> <span class="highlight">${item.playerName}</span></p>
+        <p><strong>Coordenadas:</strong> X: ${Math.round(item.data.x)}, Z: ${Math.round(item.data.z)}</p>
+        <p><strong>Altitud (Y):</strong> ${Math.round(item.data.y)}</p>
+        <p><strong>Fecha de exploración:</strong> ${new Date(item.data.timestamp).toLocaleString()}</p>
+      </div>
+    `;
+  }
+  
+  content.innerHTML = html;
+}
+
+function centerOnSelectedPlayer() {
+  if (!state.selectedPlayer || !mapData || !mapData.paths) return;
+  const uuid = state.selectedPlayer.uuid;
+  const pts = mapData.paths[uuid];
+  
+  if (pts && pts.length > 0) {
+    const activePts = pts.filter((p) => p.dimension === mapActiveDimension);
+    if (activePts.length > 0) {
+      const latest = activePts[activePts.length - 1];
+      centerOn(latest.x, latest.z);
+    } else {
+      const latest = pts[pts.length - 1];
+      mapActiveDimension = latest.dimension;
+      
+      const dimButtons = document.querySelectorAll(".dim-btn");
+      if (dimButtons.length > 0) {
+        dimButtons.forEach((b) => b.classList.toggle("active", b.dataset.dim === mapActiveDimension));
+      }
+      centerOn(latest.x, latest.z);
+    }
+  } else {
+    const p = mapData.players[uuid];
+    if (p && p.x !== undefined) {
+      mapActiveDimension = p.dimension;
+      const dimButtons = document.querySelectorAll(".dim-btn");
+      if (dimButtons.length > 0) {
+        dimButtons.forEach((b) => b.classList.toggle("active", b.dataset.dim === mapActiveDimension));
+      }
+      centerOn(p.x, p.z);
+    } else {
+      centerOn(0, 0);
+    }
+  }
+  renderMapSidebar();
+}
+
+function resizeCanvas() {
+  if (!mapCanvas) return;
+  const parent = mapCanvas.parentElement;
+  const w = parent.clientWidth || 800;
+  const h = parent.clientHeight || 520;
+  
+  if (mapCanvas.width !== w || mapCanvas.height !== h) {
+    mapCanvas.width = w;
+    mapCanvas.height = h;
+    requestRender();
+  }
+}
+
+function changeZoom(factor, cursorX, cursorY) {
+  const mcBefore = canvasToMc(cursorX, cursorY);
+  mapZoom = Math.max(0.04, Math.min(25, mapZoom * factor));
+  const mcAfter = mcToCanvas(mcBefore.x, mcBefore.z);
+  mapPanX += cursorX - mcAfter.x;
+  mapPanY += cursorY - mcAfter.y;
+  requestRender();
+}
+
+function centerOn(mcX, mcZ) {
+  if (!mapCanvas) return;
+  mapPanX = 0;
+  mapPanY = 0;
+  const cPos = mcToCanvas(mcX, mcZ);
+  mapPanX = mapCanvas.width / 2 - cPos.x;
+  mapPanY = mapCanvas.height / 2 - cPos.y;
+}
+
+function mcToCanvas(mcX, mcZ) {
+  if (!mapCanvas) return { x: 0, y: 0 };
+  const canvasX = mapCanvas.width / 2 + (mcX * mapZoom) + mapPanX;
+  const canvasY = mapCanvas.height / 2 + (mcZ * mapZoom) + mapPanY;
+  return { x: canvasX, y: canvasY };
+}
+
+function canvasToMc(canvasX, canvasY) {
+  if (!mapCanvas) return { x: 0, z: 0 };
+  const mcX = (canvasX - mapCanvas.width / 2 - mapPanX) / mapZoom;
+  const mcZ = (canvasY - mapCanvas.height / 2 - mapPanY) / mapZoom;
+  return { x: mcX, z: mcZ };
+}
+
+function updateCoordsHUD(mcX, mcZ) {
+  const coordsDiv = document.querySelector("#mapCoords");
+  if (coordsDiv) {
+    coordsDiv.textContent = `X: ${Math.round(mcX)}, Z: ${Math.round(mcZ)} · Zoom: ${(mapZoom * 100).toFixed(0)}%`;
+  }
+}
+
+let renderRequested = false;
+function requestRender() {
+  if (!renderRequested) {
+    renderRequested = true;
+    requestAnimationFrame(renderLoop);
+  }
+}
+
+function renderLoop() {
+  renderRequested = false;
+  drawMap();
+}
+
+function drawMap() {
+  if (!mapCanvas || !mapCtx) return;
+  const ctx = mapCtx;
+  const canvas = mapCanvas;
+  
+  let voidColor = "#0b0d10";
+  let gridColor = "#19281a";
+  let textCol = "#557f57";
+  
+  if (mapActiveDimension === "minecraft:the_nether") {
+    voidColor = "#120808";
+    gridColor = "#3c1212";
+    textCol = "#994c4c";
+  } else if (mapActiveDimension === "minecraft:the_end") {
+    voidColor = "#0b0812";
+    gridColor = "#2c1544";
+    textCol = "#774ca3";
+  }
+  
+  // Clear canvas completely using physical buffer dimensions in identity transform space
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = voidColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  // Terrain Region Tiles Rendering (Aerial Photo)
+  const showTerrain = document.querySelector("#chkTerrain")?.checked;
+  if (showTerrain) {
+    const minMc = canvasToMc(0, 0);
+    const maxMc = canvasToMc(canvas.width, canvas.height);
+    
+    const minRegionX = Math.floor(minMc.x / 128);
+    const maxRegionX = Math.ceil(maxMc.x / 128);
+    const minRegionZ = Math.floor(minMc.z / 128);
+    const maxRegionZ = Math.ceil(maxMc.z / 128);
+    
+    const totalVisibleRegions = (maxRegionX - minRegionX + 1) * (maxRegionZ - minRegionZ + 1);
+    
+    // Prevent fetching too many tiles if zoomed out excessively (increased limit for low-zoom rendering)
+    if (totalVisibleRegions < 220) {
+      for (let rx = minRegionX; rx <= maxRegionX; rx++) {
+        for (let rz = minRegionZ; rz <= maxRegionZ; rz++) {
+          const key = `${rx},${rz},${mapActiveDimension}`;
+          if (!regionImages[key]) {
+            const img = new Image();
+            img.src = `/api/map/region?rx=${rx}&rz=${rz}&dim=${encodeURIComponent(mapActiveDimension)}`;
+            regionImages[key] = { loaded: false, failed: false, image: img };
+            img.onload = () => {
+              regionImages[key].loaded = true;
+              requestRender();
+            };
+            img.onerror = () => {
+              regionImages[key].loaded = true;
+              regionImages[key].failed = true;
+            };
+          } else if (regionImages[key].loaded && !regionImages[key].failed) {
+            const cPos = mcToCanvas(rx * 128, rz * 128);
+            const size = 128 * mapZoom;
+            
+            ctx.save();
+            ctx.imageSmoothingEnabled = false; // Keep it crisp and pixelated!
+            ctx.drawImage(regionImages[key].image, cPos.x, cPos.y, size, size);
+            ctx.restore();
+          }
+        }
+      }
+    }
+  }
+  
+  // Spacing scales dynamically based on zoom
+  const spacing = mapZoom > 3.0 ? 50 : (mapZoom > 0.8 ? 100 : (mapZoom > 0.18 ? 500 : 2000));
+  const startX = Math.floor(canvasToMc(0, 0).x / spacing) * spacing;
+  const endX = Math.ceil(canvasToMc(canvas.width, 0).x / spacing) * spacing;
+  const startZ = Math.floor(canvasToMc(0, 0).z / spacing) * spacing;
+  const endZ = Math.ceil(canvasToMc(0, canvas.height).z / spacing) * spacing;
+  
+  ctx.strokeStyle = gridColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = startX; x <= endX; x += spacing) {
+    const cX = mcToCanvas(x, 0).x;
+    ctx.moveTo(cX, 0);
+    ctx.lineTo(cX, canvas.height);
+  }
+  for (let z = startZ; z <= endZ; z += spacing) {
+    const cY = mcToCanvas(0, z).y;
+    ctx.moveTo(0, cY);
+    ctx.lineTo(canvas.width, cY);
+  }
+  ctx.stroke();
+  
+  if (mapZoom > 0.12) {
+    ctx.fillStyle = textCol;
+    ctx.font = "9px monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    for (let x = startX; x <= endX; x += spacing) {
+      if (x % (spacing * 2) === 0) {
+        const cX = mcToCanvas(x, 0).x;
+        ctx.fillText(x, cX + 4, 4);
+      }
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    for (let z = startZ; z <= endZ; z += spacing) {
+      if (z % (spacing * 2) === 0) {
+        const cY = mcToCanvas(0, z).y;
+        ctx.fillText(`Z: ${z}`, 4, cY - 2);
+      }
+    }
+  }
+
+  // Draw Origin (0, 0) as crosshair
+  const origin = mcToCanvas(0, 0);
+  ctx.strokeStyle = "rgba(228, 206, 87, 0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(origin.x, origin.y, 4, 0, Math.PI * 2);
+  ctx.moveTo(origin.x - 10, origin.y);
+  ctx.lineTo(origin.x + 10, origin.y);
+  ctx.moveTo(origin.x, origin.y - 10);
+  ctx.lineTo(origin.x, origin.y + 10);
+  ctx.stroke();
+  
+  const showPaths = document.querySelector("#chkPaths")?.checked;
+  const showStructures = document.querySelector("#chkStructures")?.checked;
+  const showDeaths = document.querySelector("#chkDeaths")?.checked;
+  const showOnline = document.querySelector("#chkOnline")?.checked;
+
+  // Paths rendering
+  if (showPaths && mapData.paths) {
+    for (const uuid in mapData.paths) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const pts = mapData.paths[uuid];
+      if (!pts || pts.length === 0) continue;
+      
+      const isSelectedPlayer = state.selectedPlayer && state.selectedPlayer.uuid === uuid;
+      const color = getPlayerColor(uuid);
+      
+      ctx.save();
+      ctx.strokeStyle = color;
+      
+      if (isSelectedPlayer) {
+        ctx.lineWidth = 3.5;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = color;
+        ctx.globalAlpha = 1.0;
+      } else {
+        ctx.lineWidth = 1.8;
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.55;
+      }
+      
+      let drawing = false;
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i];
+        if (pt.dimension === mapActiveDimension) {
+          const cPos = mcToCanvas(pt.x, pt.z);
+          if (!drawing) {
+            ctx.beginPath();
+            ctx.moveTo(cPos.x, cPos.y);
+            drawing = true;
+          } else {
+            ctx.lineTo(cPos.x, cPos.y);
+          }
+        } else {
+          if (drawing) {
+            ctx.stroke();
+            drawing = false;
+          }
+        }
+      }
+      if (drawing) {
+        ctx.stroke();
+      }
+      ctx.restore();
+      
+      if (mapZoom > 0.4) {
+        ctx.fillStyle = color;
+        ctx.globalAlpha = isSelectedPlayer ? 1.0 : 0.6;
+        for (const pt of pts) {
+          if (pt.dimension === mapActiveDimension && pt.type === "PATH_SAMPLE") {
+            const cPos = mcToCanvas(pt.x, pt.z);
+            ctx.beginPath();
+            ctx.arc(cPos.x, cPos.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+  }
+
+  // Structures rendering
+  if (showStructures && mapData.structures) {
+    for (const struct of mapData.structures) {
+      if (struct.dimension !== mapActiveDimension) continue;
+      if (struct.x === undefined) continue;
+      
+      const cPos = mcToCanvas(struct.x, struct.z);
+      const isHovered = mapHovered && mapHovered.type === "structure" && mapHovered.data.coords === struct.coords;
+      const isSelected = mapSelected && mapSelected.type === "structure" && mapSelected.data.coords === struct.coords;
+      
+      ctx.save();
+      
+      if (isHovered || isSelected) {
+        ctx.strokeStyle = "rgba(228, 206, 87, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cPos.x, cPos.y, 9, 0, Math.PI*2);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = struct.dimension.includes("nether") ? "#e74c3c" : (struct.dimension.includes("end") ? "#9b59b6" : "#2ecc71");
+      ctx.strokeStyle = "#050505";
+      ctx.lineWidth = 1.5;
+      
+      ctx.beginPath();
+      ctx.moveTo(cPos.x, cPos.y - 6);
+      ctx.lineTo(cPos.x + 6, cPos.y);
+      ctx.lineTo(cPos.x, cPos.y + 6);
+      ctx.lineTo(cPos.x - 6, cPos.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(cPos.x - 1, cPos.y - 1, 2, 2);
+      
+      if (mapZoom > 0.45) {
+        ctx.font = "8px monospace";
+        const nameWidth = ctx.measureText(struct.name).width + 6;
+        
+        ctx.fillStyle = "rgba(10, 12, 15, 0.85)";
+        ctx.strokeStyle = "#050505";
+        ctx.lineWidth = 1;
+        
+        ctx.beginPath();
+        ctx.rect(cPos.x - nameWidth / 2, cPos.y + 8, nameWidth, 10);
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(struct.name, cPos.x, cPos.y + 13);
+      }
+      ctx.restore();
+    }
+  }
+
+  // Deaths rendering
+  if (showDeaths && mapData.paths) {
+    for (const uuid in mapData.paths) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const pts = mapData.paths[uuid];
+      for (const pt of pts) {
+        if (pt.type === "DEATH" && pt.dimension === mapActiveDimension) {
+          const cPos = mcToCanvas(pt.x, pt.z);
+          const isHovered = mapHovered && mapHovered.type === "death" && mapHovered.data.id === pt.id;
+          
+          ctx.save();
+          if (isHovered) {
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = "#ff3333";
+          }
+          
+          ctx.font = "14px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("💀", cPos.x, cPos.y);
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  // Online Players live rendering
+  if (showOnline && mapData.players) {
+    for (const uuid in mapData.players) {
+      if (state.mapVisiblePlayers && !state.mapVisiblePlayers.has(uuid)) continue;
+      const p = mapData.players[uuid];
+      if (!p.online || p.dimension !== mapActiveDimension || p.x === undefined) continue;
+      
+      const cPos = mcToCanvas(p.x, p.z);
+      const color = getPlayerColor(uuid);
+      const isHovered = mapHovered && mapHovered.type === "online_player" && mapHovered.uuid === uuid;
+      
+      ctx.save();
+      
+      ctx.strokeStyle = isHovered ? "#ffffff" : color;
+      ctx.lineWidth = isHovered ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.arc(cPos.x, cPos.y, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      getPlayerFace(p.name, (img) => {
+        ctx.drawImage(img, cPos.x - 8, cPos.y - 8, 16, 16);
+      });
+      
+      if (!skinImages[p.name] || !skinImages[p.name].loaded) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(cPos.x, cPos.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(p.name.charAt(0).toUpperCase(), cPos.x, cPos.y);
+      }
+      
+      ctx.fillStyle = "rgba(10, 12, 15, 0.85)";
+      ctx.strokeStyle = "#050505";
+      ctx.lineWidth = 1;
+      
+      ctx.font = "8px monospace";
+      const nameWidth = ctx.measureText(p.name).width + 6;
+      
+      ctx.beginPath();
+      ctx.rect(cPos.x - nameWidth / 2, cPos.y - 22, nameWidth, 10);
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.name, cPos.x, cPos.y - 17);
+      
+      ctx.restore();
+    }
+  }
 }

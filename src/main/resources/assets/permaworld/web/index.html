@@ -12,24 +12,21 @@
     <header class="topbar">
         <div>
             <h1>Permaworld Logbook</h1>
-            <p>Minecraft admin recovery console</p>
+            <p>A persistent world, preserved for eternity</p>
         </div>
         <div class="topbar-actions">
             <div class="topbar-slider">
                 <span>Glossy</span>
                 <input id="glossySlider" type="range" min="0" max="100" value="50" class="mc-slider">
             </div>
-            <label class="admin-pick" style="margin-right: 16px;">
-                <span>Mi Usuario</span>
-                <select id="myUserSelect"></select>
-            </label>
-            <label class="admin-pick">
-                <span>Admin</span>
-                <select id="adminSelect"></select>
-            </label>
         </div>
     </header>
-    <main class="layout">
+    <nav class="global-tabs">
+        <button data-tab="JUGADORES" class="mc-button tab-btn is-active">👤 Jugadores</button>
+        <button data-tab="MAPA" class="mc-button tab-btn">🗺️ Mapa General</button>
+        <button data-tab="ADMIN" class="mc-button tab-btn">💻 Consola Admin</button>
+    </nav>
+    <main class="layout view-jugadores">
         <aside class="rail panel">
             <div class="panel-title">Players</div>
             <input id="playerSearch" class="mc-input" type="search" placeholder="Search player">
@@ -38,14 +35,13 @@
         <section class="timeline panel">
             <div class="toolbar">
                 <div id="filterBar" class="filter-bar">
-                    <button data-filter="ALL" class="mc-button is-active">All</button>
-                    <button data-filter="DEATH" class="mc-button">Deaths</button>
-                    <button data-filter="PATH_SAMPLE" class="mc-button">Path</button>
-                    <button data-filter="GAME_MODE_CHANGE" class="mc-button">Game Mode</button>
-                    <button data-filter="DIMENSION_CHANGE" class="mc-button">Dimension</button>
-                    <button data-filter="ADVANCEMENT_DONE" class="mc-button">Advancements</button>
-                    <button data-filter="STATS" class="mc-button">Statistics</button>
-                    <button data-filter="ADMIN" class="mc-button">Consola Admin</button>
+                    <button data-filter="ALL" class="mc-button is-active">Todos</button>
+                    <button data-filter="DEATH" class="mc-button">Muertes</button>
+                    <button data-filter="PATH_SAMPLE" class="mc-button">Caminos</button>
+                    <button data-filter="GAME_MODE_CHANGE" class="mc-button">Modo de Juego</button>
+                    <button data-filter="DIMENSION_CHANGE" class="mc-button">Dimensiones</button>
+                    <button data-filter="ADVANCEMENT_DONE" class="mc-button">Logros</button>
+                    <button data-filter="STATS" class="mc-button">Estadísticas</button>
                 </div>
             </div>
             <div id="recordList" class="record-list"></div>

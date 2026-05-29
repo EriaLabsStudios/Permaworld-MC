@@ -23,6 +23,7 @@ public final class PermaworldHttpServer {
     private final WebRecordQueryService queryService;
     private final WebRestoreService restoreService;
     private HttpServer httpServer;
+    private java.util.concurrent.ExecutorService httpExecutor;
 
     public PermaworldHttpServer(MinecraftServer server, PermaworldWebConfig config) {
         this.server = server;
@@ -39,6 +40,14 @@ public final class PermaworldHttpServer {
         try {
             Permaworld.LOGGER.info("Montando servidor HTTP de Permaworld web en {}:{}...", config.host(), config.port());
             httpServer = HttpServer.create(new InetSocketAddress(config.host(), config.port()), 0);
+            
+            httpExecutor = java.util.concurrent.Executors.newCachedThreadPool(r -> {
+                Thread t = new Thread(r, "Permaworld-Web-Worker");
+                t.setDaemon(true);
+                return t;
+            });
+            httpServer.setExecutor(httpExecutor);
+            
             httpServer.createContext("/", this::handleRequest);
             httpServer.start();
             InetSocketAddress address = httpServer.getAddress();
@@ -56,9 +65,16 @@ public final class PermaworldHttpServer {
             return;
         }
         InetSocketAddress address = httpServer.getAddress();
-        httpServer.stop(0);
+        httpServer.stop(1); // 1-second delay for graceful shutdown
         Permaworld.LOGGER.info("Permaworld web detenida en http://{}:{}/", address.getHostString(), address.getPort());
         httpServer = null;
+        
+        if (httpExecutor != null) {
+            try {
+                httpExecutor.shutdownNow();
+            } catch (Exception ignored) {}
+            httpExecutor = null;
+        }
     }
 
     private void handleRequest(HttpExchange exchange) throws IOException {
@@ -94,6 +110,37 @@ public final class PermaworldHttpServer {
             }
             if ("/api/structures".equals(path)) {
                 writeJson(exchange, queryService.allStructures());
+                return;
+            }
+            if ("/api/dimensions".equals(path)) {
+                com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+                if (server != null) {
+                    server.levelKeys().forEach(key -> array.add(key.identifier().toString()));
+                } else {
+                    array.add("minecraft:overworld");
+                    array.add("minecraft:the_nether");
+                    array.add("minecraft:the_end");
+                }
+                writeJson(exchange, array);
+                return;
+            }
+            if ("/api/map/data".equals(path)) {
+                writeJson(exchange, queryService.mapData());
+                return;
+            }
+            if ("/api/map/region".equals(path)) {
+                String query = exchange.getRequestURI().getQuery();
+                int rx = queryValue(query, "rx").map(Integer::parseInt).orElse(0);
+                int rz = queryValue(query, "rz").map(Integer::parseInt).orElse(0);
+                String dim = queryValue(query, "dim").orElse("minecraft:overworld");
+                
+                byte[] imgBytes = queryService.renderMapRegion(rx, rz, dim);
+                exchange.getResponseHeaders().set("Content-Type", "image/png");
+                exchange.getResponseHeaders().set("Cache-Control", "public, max-age=10"); // cache regions for 10s to reflect recent changes without massive reload
+                exchange.sendResponseHeaders(200, imgBytes.length);
+                try (OutputStream output = exchange.getResponseBody()) {
+                    output.write(imgBytes);
+                }
                 return;
             }
             if ("/api/players".equals(path)) {
