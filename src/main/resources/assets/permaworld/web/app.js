@@ -2397,9 +2397,11 @@ function drawMap() {
   }
   ctx.stroke();
   
-  if (mapZoom > 0.12) {
+  if (mapZoom > 0.06) {
+    // Scale grid label font up when zoomed out so coordinates stay readable
+    const gridFontSize = Math.round(Math.max(9, Math.min(16, 9 / mapZoom * 0.18)));
     ctx.fillStyle = textCol;
-    ctx.font = "9px monospace";
+    ctx.font = `${gridFontSize}px monospace`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     for (let x = startX; x <= endX; x += spacing) {
@@ -2483,14 +2485,16 @@ function drawMap() {
       }
       ctx.restore();
       
-      if (mapZoom > 0.4) {
+      if (mapZoom > 0.15) {
+        // Scale dot radius inversely so dots stay visible when zoomed out
+        const dotR = Math.max(1.5, Math.min(4, 2 / mapZoom * 0.5));
         ctx.fillStyle = color;
         ctx.globalAlpha = isSelectedPlayer ? 1.0 : 0.6;
         for (const pt of pts) {
           if (pt.dimension === mapActiveDimension && pt.type === "PATH_SAMPLE") {
             const cPos = mcToCanvas(pt.x, pt.z);
             ctx.beginPath();
-            ctx.arc(cPos.x, cPos.y, 2, 0, Math.PI * 2);
+            ctx.arc(cPos.x, cPos.y, dotR, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -2508,13 +2512,16 @@ function drawMap() {
       const isHovered = mapHovered && mapHovered.type === "structure" && mapHovered.data.coords === struct.coords;
       const isSelected = mapSelected && mapSelected.type === "structure" && mapSelected.data.coords === struct.coords;
       
+      // Scale diamond size so structures are always visible regardless of zoom
+      const sDiam = Math.max(5, Math.min(9, 6 / mapZoom * 0.4));
+      
       ctx.save();
       
       if (isHovered || isSelected) {
         ctx.strokeStyle = "rgba(228, 206, 87, 0.8)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(cPos.x, cPos.y, 9, 0, Math.PI*2);
+        ctx.arc(cPos.x, cPos.y, sDiam + 4, 0, Math.PI*2);
         ctx.stroke();
       }
       
@@ -2523,10 +2530,10 @@ function drawMap() {
       ctx.lineWidth = 1.5;
       
       ctx.beginPath();
-      ctx.moveTo(cPos.x, cPos.y - 6);
-      ctx.lineTo(cPos.x + 6, cPos.y);
-      ctx.lineTo(cPos.x, cPos.y + 6);
-      ctx.lineTo(cPos.x - 6, cPos.y);
+      ctx.moveTo(cPos.x, cPos.y - sDiam);
+      ctx.lineTo(cPos.x + sDiam, cPos.y);
+      ctx.lineTo(cPos.x, cPos.y + sDiam);
+      ctx.lineTo(cPos.x - sDiam, cPos.y);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -2534,8 +2541,9 @@ function drawMap() {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(cPos.x - 1, cPos.y - 1, 2, 2);
       
-      if (mapZoom > 0.45) {
-        ctx.font = "8px monospace";
+      if (mapZoom > 0.25) {
+        const labelFontSize = Math.round(Math.max(8, Math.min(13, 8 / mapZoom * 0.35)));
+        ctx.font = `${labelFontSize}px monospace`;
         const nameWidth = ctx.measureText(struct.name).width + 6;
         
         ctx.fillStyle = "rgba(10, 12, 15, 0.85)";
@@ -2543,14 +2551,14 @@ function drawMap() {
         ctx.lineWidth = 1;
         
         ctx.beginPath();
-        ctx.rect(cPos.x - nameWidth / 2, cPos.y + 8, nameWidth, 10);
+        ctx.rect(cPos.x - nameWidth / 2, cPos.y + sDiam + 2, nameWidth, labelFontSize + 2);
         ctx.fill();
         ctx.stroke();
         
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(struct.name, cPos.x, cPos.y + 13);
+        ctx.fillText(struct.name, cPos.x, cPos.y + sDiam + labelFontSize / 2 + 3);
       }
       ctx.restore();
     }
@@ -2572,7 +2580,9 @@ function drawMap() {
             ctx.shadowColor = "#ff3333";
           }
           
-          ctx.font = "14px monospace";
+          // Scale death skull inversely so it stays visible when zoomed out
+          const skullSize = Math.round(Math.max(12, Math.min(22, 14 / mapZoom * 0.5)));
+          ctx.font = `${skullSize}px monospace`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText("💀", cPos.x, cPos.y);
@@ -2593,47 +2603,53 @@ function drawMap() {
       const color = getPlayerColor(uuid);
       const isHovered = mapHovered && mapHovered.type === "online_player" && mapHovered.uuid === uuid;
       
+      // Scale player avatar inversely so it stays visible when zoomed out
+      const pRadius = Math.max(8, Math.min(14, 10 / mapZoom * 0.45));
+      const pAvatar = pRadius * 1.6;
+      
       ctx.save();
       
       ctx.strokeStyle = isHovered ? "#ffffff" : color;
       ctx.lineWidth = isHovered ? 2.5 : 1.5;
       ctx.beginPath();
-      ctx.arc(cPos.x, cPos.y, 11, 0, Math.PI * 2);
+      ctx.arc(cPos.x, cPos.y, pRadius + 3, 0, Math.PI * 2);
       ctx.stroke();
       
       getPlayerFace(p.name, (img) => {
-        ctx.drawImage(img, cPos.x - 8, cPos.y - 8, 16, 16);
+        ctx.drawImage(img, cPos.x - pAvatar / 2, cPos.y - pAvatar / 2, pAvatar, pAvatar);
       });
       
       if (!skinImages[p.name] || !skinImages[p.name].loaded) {
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(cPos.x, cPos.y, 8, 0, Math.PI * 2);
+        ctx.arc(cPos.x, cPos.y, pRadius, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 9px monospace";
+        const initFontSize = Math.round(Math.max(9, Math.min(14, 9 / mapZoom * 0.35)));
+        ctx.font = `bold ${initFontSize}px monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(p.name.charAt(0).toUpperCase(), cPos.x, cPos.y);
       }
       
+      const nameFontSize = Math.round(Math.max(8, Math.min(13, 8 / mapZoom * 0.35)));
+      ctx.font = `${nameFontSize}px monospace`;
+      const nameWidth = ctx.measureText(p.name).width + 6;
+      const nameY = cPos.y - pRadius - nameFontSize - 4;
+      
       ctx.fillStyle = "rgba(10, 12, 15, 0.85)";
       ctx.strokeStyle = "#050505";
       ctx.lineWidth = 1;
-      
-      ctx.font = "8px monospace";
-      const nameWidth = ctx.measureText(p.name).width + 6;
-      
       ctx.beginPath();
-      ctx.rect(cPos.x - nameWidth / 2, cPos.y - 22, nameWidth, 10);
+      ctx.rect(cPos.x - nameWidth / 2, nameY, nameWidth, nameFontSize + 2);
       ctx.fill();
       ctx.stroke();
       
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(p.name, cPos.x, cPos.y - 17);
+      ctx.fillText(p.name, cPos.x, nameY + nameFontSize / 2 + 1);
       
       ctx.restore();
     }
