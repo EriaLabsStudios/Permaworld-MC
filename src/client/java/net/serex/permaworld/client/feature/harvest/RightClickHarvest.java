@@ -52,7 +52,7 @@ public final class RightClickHarvest implements FeatureModule {
     );
 
     private static final java.util.Random RANDOM = new java.util.Random();
-
+    private static boolean isProcessing = false;
 
     @Override
     public void onClientInit() {
@@ -60,6 +60,9 @@ public final class RightClickHarvest implements FeatureModule {
     }
 
     private static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
+        if (isProcessing) {
+            return InteractionResult.PASS;
+        }
         if (!ConfigManager.get().config().harvest.enabled) {
             return InteractionResult.PASS;
         }
@@ -77,19 +80,40 @@ public final class RightClickHarvest implements FeatureModule {
         ItemStack mainHandStack = local.getMainHandItem();
         ItemStack offHandStack = local.getOffhandItem();
         String mainHandId = BuiltInRegistries.ITEM.getKey(mainHandStack.getItem()).toString();
+        String offHandId = BuiltInRegistries.ITEM.getKey(offHandStack.getItem()).toString();
 
-        if ("minecraft:bone_meal".equals(mainHandId)) {
-            HoeArea offhandHoeArea = hoeArea(offHandStack, ConfigManager.get().config().harvest);
+        boolean boneMealInMain = "minecraft:bone_meal".equals(mainHandId);
+        boolean boneMealInOff = "minecraft:bone_meal".equals(offHandId);
+
+        InteractionHand boneMealHand = null;
+        ItemStack hoeStack = null;
+
+        if (boneMealInMain) {
+            hoeStack = offHandStack;
+            boneMealHand = InteractionHand.MAIN_HAND;
+        } else if (boneMealInOff) {
+            hoeStack = mainHandStack;
+            boneMealHand = InteractionHand.OFF_HAND;
+        }
+
+        if (boneMealHand != null) {
+            HoeArea offhandHoeArea = hoeArea(hoeStack, ConfigManager.get().config().harvest);
             if (offhandHoeArea != null) {
                 BlockPos pos = hit.getBlockPos();
                 List<BlockPos> targets = bonemealableBlocksInArea(level, pos, offhandHoeArea.size());
                 if (!targets.isEmpty()) {
-                    DebugLog.log("harvest", "Polvo de hueso en área (tamaño {}) en {} con hoz en mano secundaria.", offhandHoeArea.size(), pos);
-                    for (BlockPos target : targets) {
-                        if (local.getMainHandItem().isEmpty() || !BuiltInRegistries.ITEM.getKey(local.getMainHandItem().getItem()).toString().equals("minecraft:bone_meal")) {
-                            break;
+                    DebugLog.log("harvest", "Polvo de hueso en área (tamaño {}) en {} con hoz en la otra mano.", offhandHoeArea.size(), pos);
+                    try {
+                        isProcessing = true;
+                        for (BlockPos target : targets) {
+                            ItemStack currentBoneMealStack = boneMealHand == InteractionHand.MAIN_HAND ? local.getMainHandItem() : local.getOffhandItem();
+                            if (currentBoneMealStack.isEmpty() || !BuiltInRegistries.ITEM.getKey(currentBoneMealStack.getItem()).toString().equals("minecraft:bone_meal")) {
+                                break;
+                            }
+                            gameMode.useItemOn(local, boneMealHand, hitFor(target, hit));
                         }
-                        gameMode.useItemOn(local, InteractionHand.MAIN_HAND, hitFor(target, hit));
+                    } finally {
+                        isProcessing = false;
                     }
                     return InteractionResult.SUCCESS;
                 }
@@ -177,6 +201,7 @@ public final class RightClickHarvest implements FeatureModule {
         }
 
         try {
+            isProcessing = true;
             for (BlockPos target : targets) {
                 // Romper el cultivo con el flujo Vanilla de jugador.
                 boolean broken = gameMode.startDestroyBlock(target, hit.getDirection());
@@ -194,6 +219,7 @@ public final class RightClickHarvest implements FeatureModule {
                 DebugLog.log("harvest", "Replantado cultivo en {}.", target);
             }
         } finally {
+            isProcessing = false;
             // 3) Devolver la semilla a su sitio si hicimos swap
             if (!hasSeedInOffhand) {
                 gameMode.handleContainerInput(local.inventoryMenu.containerId, menuSlotId, 40, ContainerInput.SWAP, local);
