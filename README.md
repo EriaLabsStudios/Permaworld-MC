@@ -1,17 +1,41 @@
 # Permaworld
 
-Este es el punto de entrada a la documentación y los proyectos de Permaworld. Aquí no se publica un mod instalable: cada componente tiene su propio repositorio, instrucciones y versiones.
+Este es el punto de entrada a los mods de Permaworld. Este repositorio no es un
+mod: publica [releases conjuntas](https://github.com/EriaLabsStudios/Permaworld-MC/releases)
+con los JAR de los seis componentes, mientras que cada uno conserva su propio
+repositorio, instrucciones y versiones.
 
-| Proyecto | Qué contiene | Enlaces |
-| --- | --- | --- |
-| **Permaworld Main** | Mod base para Minecraft Fabric: utilidades, inventario, cultivos y perfiles de paquetes de recursos. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-main) · [Descargas](https://github.com/EriaLabsStudios/permaworld-main/releases) |
-| **Permaworld Chat** | Mod de chat para Fabric 26.3. La primera release permite colorear mensajes; otras funciones siguen en desarrollo. | [Código y seguimiento](https://github.com/EriaLabsStudios/permaworld-chat) · [Descargas](https://github.com/EriaLabsStudios/permaworld-chat/releases) |
-| **Permaworld Web** | Consola web y API integradas en Minecraft. Requiere Permaworld Main. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-web) |
-| **Permaworld Texture Packs** | Fuentes editables y paquetes de recursos. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-texture-packs) |
+| Mod | Qué contiene actualmente | Dónde se instala | Enlaces |
+| --- | --- | --- | --- |
+| **Permaworld Main** | Inventarios, slots favoritos, cosecha y actualizador de mods. | Cliente; algunas funciones también pueden usarse en servidor. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-main) · [Descargas](https://github.com/EriaLabsStudios/permaworld-main/releases) |
+| **Permaworld Utilities** | Corrección de Easy Place de Litematica para colocar bloques con la orientación prevista. | Solo cliente; útil si usas Litematica. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-utilities) · [Descargas](https://github.com/EriaLabsStudios/permaworld-utilities/releases) |
+| **Permaworld Chat** | Colores en los mensajes públicos del chat. | Servidor para aplicar el formato; cliente opcional. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-chat) · [Descargas](https://github.com/EriaLabsStudios/permaworld-chat/releases) |
+| **Server Changelogs** | Historial de novedades y editor para operadores mediante diálogos del juego. | Servidor o mundo local; los clientes no necesitan el mod. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-server-changelogs) · [Descargas](https://github.com/EriaLabsStudios/permaworld-server-changelogs/releases) |
+| **Multiworld** | Opción de impedir que la TNT dañe bloques, desactivada por defecto. | Solo servidor. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-multiworld) · [Descargas](https://github.com/EriaLabsStudios/permaworld-multiworld/releases) |
+| **Permaworld Web** | Consola web con estadísticas, historial, inventarios y mapa. Requiere Main. | Servidor o mundo local. | [Repositorio](https://github.com/EriaLabsStudios/permaworld-web) · [Descargas](https://github.com/EriaLabsStudios/permaworld-web/releases) |
+
+## ¿Qué incluye Utilities?
+
+Por ahora incluye **solo Easy Place**. Cuando Litematica calcula dónde colocar
+un bloque de un esquema, Utilities conserva el punto exacto de clic en el
+paquete enviado al juego y aplica estrategias para losas, escaleras,
+trampillas, puertas, troncos, bloques con orientación horizontal, palancas y
+raíles. Si no hay una estrategia aplicable, conserva el comportamiento de
+Litematica. Sin Litematica no aporta una función visible, así que puedes omitirlo.
+No necesita instalarse en el servidor.
+
+Los [proyectos de paquetes de recursos](https://github.com/EriaLabsStudios/permaworld-texture-packs)
+se distribuyen por separado y no forman parte del lote de JAR.
 
 ## Instalación
 
-Elige en las [releases de Permaworld Main](https://github.com/EriaLabsStudios/permaworld-main/releases) un JAR que indique tu versión de Minecraft e instálalo con Fabric y Fabric API. Si quieres la consola web, consulta las instrucciones de **Permaworld Web** y usa una versión compatible con Main. Los paquetes de recursos se distribuyen por separado.
+Instala Fabric y Fabric API para la misma versión de Minecraft que indique la
+[release conjunta](https://github.com/EriaLabsStudios/Permaworld-MC/releases).
+En el cliente, instala **Permaworld Main**; añade **Utilities** si utilizas
+Easy Place de Litematica. Main puede avisarte al iniciar de actualizaciones y
+ofrecerte instalar los mods de cliente opcionales. Instala los mods de servidor
+en el servidor o en un mundo local según la tabla; no hace falta copiar sus JAR
+al cliente para entrar en un servidor Permaworld.
 
 Los repositorios de los componentes son privados por ahora: sus enlaces requieren acceso a EriaLabsStudios.
 
@@ -75,8 +99,7 @@ La Action usa el token normal del repositorio padre para publicar la release.
 Para leer los seis mods privados de EriaLabsStudios, configurar
 `BUNDLE_REPOS_TOKEN` con permiso de lectura del contenido de todos ellos.
 
-Actualmente el lote incluye Permaworld Main, Utilities, Chat, Server
-Changelogs, Multiworld y Web. Los proyectos locales sin remoto configurado
+Los seis mods de la tabla forman el lote. Los proyectos locales sin remoto configurado
 requieren un repositorio accesible y tags con este formato antes de poder
 sumarse. `mods/_skeleton` es una plantilla y `mods/permaworld-profiler` no
 tiene build Gradle.
