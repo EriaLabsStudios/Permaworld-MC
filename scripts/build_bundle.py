@@ -14,6 +14,7 @@ import zipfile
 # Keep permaworld-main before permaworld-web, which compiles against its JAR.
 REPOSITORIES = (
     "EriaLabsStudios/permaworld-main",
+    "EriaLabsStudios/permaworld-texture-pack",
     "EriaLabsStudios/permaworld-utilities",
     "EriaLabsStudios/permaworld-chat",
     "EriaLabsStudios/permaworld-server-changelogs",
