@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import urllib.request
 import zipfile
 
 
@@ -21,6 +22,7 @@ REPOSITORIES = (
     "EriaLabsStudios/permaworld-web",
 )
 MINECRAFT_VERSION = re.compile(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?\Z")
+RELEASES_URL = "https://api.github.com/repos/EriaLabsStudios/Permaworld-MC/releases?per_page=100"
 
 
 def run(*args, cwd=None, env=None):
@@ -58,11 +60,33 @@ def properties(path):
     )
 
 
+def latest_bundle_manifest(mc):
+    request = urllib.request.Request(RELEASES_URL, headers={"User-Agent": "Permaworld-bundle"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        releases = json.load(response)
+    pattern = re.compile(rf"bundle-mc{re.escape(mc)}-r([0-9]+)\Z")
+    matching = [(int(match.group(1)), release) for release in releases
+                if (match := pattern.fullmatch(release["tag_name"]))]
+    if not matching:
+        return None
+    release = max(matching)[1]
+    asset = next(asset for asset in release["assets"] if asset["name"] == "manifest.json")
+    with urllib.request.urlopen(asset["browser_download_url"], timeout=20) as response:
+        return json.load(response)
+
+
+def same_selection(manifest, selected):
+    return manifest is not None and {
+        (mod["repository"], mod["tag"], mod["commit"]) for mod in manifest["mods"]
+    } == set(selected)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("minecraft_version")
     parser.add_argument("--workdir", type=Path, default=Path(".bundle-work"))
     parser.add_argument("--output", type=Path, default=Path("dist"))
+    parser.add_argument("--skip-unchanged", action="store_true")
     args = parser.parse_args()
     mc = args.minecraft_version
     if not MINECRAFT_VERSION.fullmatch(mc):
@@ -80,6 +104,10 @@ def main():
             raise SystemExit(f"No se puede seleccionar {repo}: {error}") from error
         selected.append((repo, tag, sha))
         print(f"{repo}: {tag} ({sha})", flush=True)
+
+    if args.skip_unchanged and same_selection(latest_bundle_manifest(mc), selected):
+        print("Sin cambios respecto a la ultima release conjunta", flush=True)
+        return
 
     workdir = args.workdir.resolve()
     output = args.output.resolve()
@@ -121,12 +149,19 @@ def main():
         with zipfile.ZipFile(jar) as archive:
             if archive.testzip() is not None or "fabric.mod.json" not in archive.namelist():
                 raise SystemExit(f"JAR invalido: {jar}")
+            metadata = json.loads(archive.read("fabric.mod.json"))
+            if metadata.get("version") not in {mod_version, f"{mod_version}+mc{mc}"}:
+                raise SystemExit(f"Version del JAR no coincide con {tag}: {jar}")
+            mod_id = metadata.get("id")
+            if not isinstance(mod_id, str) or not mod_id:
+                raise SystemExit(f"Falta ID de mod en {jar}")
         destination = output / jar.name
         if destination.exists():
             raise SystemExit(f"Nombre de JAR duplicado: {jar.name}")
         shutil.copy2(jar, destination)
         digest = hashlib.sha256(destination.read_bytes()).hexdigest()
-        manifest["mods"].append({"repository": repo, "tag": tag, "commit": sha,
+        manifest["mods"].append({"repository": repo, "mod_id": mod_id,
+                                 "version": metadata["version"], "tag": tag, "commit": sha,
                                  "jar": jar.name, "sha256": digest})
         if name == "permaworld-main":
             main_jar = jar.resolve()

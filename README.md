@@ -65,6 +65,12 @@ un workflow configurado para ello.
 4. Revisar la release `bundle-mc<version>-r<numero>`: contiene los JAR,
    `SHA256SUMS.txt` y `manifest.json`, con el tag y commit exactos de cada mod.
 
+El repositorio padre es público: esos JAR y el manifiesto sirven también como
+catálogo de actualizaciones para los clientes, sin publicar el código de los
+mods. El workflow revisa los tags de Minecraft 26.3 cada hora y solo crea otra
+release cuando cambia al menos uno. Una ejecución manual permite publicar un
+lote para otra versión exacta de Minecraft.
+
 La Action usa el token normal del repositorio padre para publicar la release.
 Para leer los mods privados, configurar `BUNDLE_REPOS_TOKEN` con acceso a los
 seis repositorios, o bien `BUNDLE_ERIA_REPOS_TOKEN` para los cuatro de
