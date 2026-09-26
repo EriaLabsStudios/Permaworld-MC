@@ -51,6 +51,10 @@ def properties(path):
     )
 
 
+def expected_jar_name(repo, mod_version, minecraft_version):
+    return f"permaworld-{repo.rsplit('/', 1)[1].removeprefix('permaworld-')}-{mod_version}-{minecraft_version}.jar"
+
+
 def latest_bundle_manifest(mc):
     request = urllib.request.Request(RELEASES_URL, headers={"User-Agent": "Permaworld-bundle"})
     with urllib.request.urlopen(request, timeout=20) as response:
@@ -137,6 +141,9 @@ def main():
         if len(jars) != 1:
             raise SystemExit(f"Se esperaba un JAR instalable en {repo}; encontrados: {jars}")
         jar = jars[0]
+        expected_name = expected_jar_name(repo, mod_version, mc)
+        if jar.name != expected_name:
+            raise SystemExit(f"El JAR de {repo} debe llamarse {expected_name}; se obtuvo {jar.name}")
         with zipfile.ZipFile(jar) as archive:
             if archive.testzip() is not None or "fabric.mod.json" not in archive.namelist():
                 raise SystemExit(f"JAR invalido: {jar}")

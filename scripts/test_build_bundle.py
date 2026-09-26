@@ -1,5 +1,5 @@
 import unittest
-from build_bundle import same_selection, select_tag
+from build_bundle import expected_jar_name, same_selection, select_tag
 
 
 class SelectTagTest(unittest.TestCase):
@@ -14,7 +14,13 @@ class SelectTagTest(unittest.TestCase):
 
     def test_missing_version_fails(self):
         with self.assertRaises(ValueError):
-            select_tag(["v1.0.0+mc26.2\told"], "26.3")
+           select_tag(["v1.0.0+mc26.2\told"], "26.3")
+
+    def test_uses_one_jar_name_convention_for_every_mod(self):
+        self.assertEqual("permaworld-main-1.0.4-26.3.jar",
+                         expected_jar_name("EriaLabsStudios/permaworld-main", "1.0.4", "26.3"))
+        self.assertEqual("permaworld-server-changelogs-0.1.1-26.3.jar",
+                         expected_jar_name("EriaLabsStudios/permaworld-server-changelogs", "0.1.1", "26.3"))
 
     def test_unchanged_manifest(self):
         selected = [("owner/mod", "v1.0.0+mc26.3", "abc")]

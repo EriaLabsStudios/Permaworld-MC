@@ -45,6 +45,17 @@ Este repositorio alojó una versión antigua del mod para Minecraft 26.1.2, con 
 
 ## Tags de los mods
 
+## Nombres de los JAR
+
+Todo JAR instalable de Permaworld usa este formato:
+
+`permaworld-<nombre-del-mod>-<version-del-mod>-<version-de-Minecraft>.jar`
+
+Por ejemplo, `permaworld-main-1.0.4-26.3.jar` o
+`permaworld-server-changelogs-0.1.1-26.3.jar`. Los JAR de fuentes
+conservan el sufijo `-sources` y no se instalan. La Action del lote valida
+el nombre antes de publicar una release conjunta.
+
 Cada version publicable de un mod usa un tag anotado con el formato
 `vX.Y.Z+mc<version-de-Minecraft>`. `X.Y.Z` es la version del mod y el sufijo
 identifica la version **exacta** de Minecraft. Por ejemplo:
