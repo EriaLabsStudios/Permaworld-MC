@@ -72,11 +72,8 @@ release cuando cambia al menos uno. Una ejecución manual permite publicar un
 lote para otra versión exacta de Minecraft.
 
 La Action usa el token normal del repositorio padre para publicar la release.
-Para leer los mods privados, configurar `BUNDLE_REPOS_TOKEN` con acceso a los
-seis repositorios, o bien `BUNDLE_ERIA_REPOS_TOKEN` para los cuatro de
-EriaLabsStudios y `BUNDLE_ADAN_REPOS_TOKEN` para los dos de AdanJoGoHe.
-Los tokens solo necesitan permiso de lectura del contenido. Si se configuran
-los secretos por propietario, tienen prioridad sobre `BUNDLE_REPOS_TOKEN`.
+Para leer los seis mods privados de EriaLabsStudios, configurar
+`BUNDLE_REPOS_TOKEN` con permiso de lectura del contenido de todos ellos.
 
 Actualmente el lote incluye Permaworld Main, Utilities, Chat, Server
 Changelogs, Multiworld y Web. Los proyectos locales sin remoto configurado
