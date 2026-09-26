@@ -25,11 +25,9 @@ jobs:
       - name: Comprobar acceso a los mods privados
         id: access
         env:
-          ALL_TOKEN: ${{ secrets.BUNDLE_REPOS_TOKEN }}
-          ERIA_TOKEN: ${{ secrets.BUNDLE_ERIA_REPOS_TOKEN }}
-          ADAN_TOKEN: ${{ secrets.BUNDLE_ADAN_REPOS_TOKEN }}
+          REPOS_TOKEN: ${{ secrets.BUNDLE_REPOS_TOKEN }}
         run: |
-          if [[ -z "$ALL_TOKEN" && ( -z "$ERIA_TOKEN" || -z "$ADAN_TOKEN" ) ]]; then
+          if [[ -z "$REPOS_TOKEN" ]]; then
             if [[ "$GITHUB_EVENT_NAME" == schedule ]]; then
               echo 'ready=false' >> "$GITHUB_OUTPUT"
               exit 0
@@ -54,9 +52,7 @@ jobs:
       - name: Seleccionar y compilar los mods
         if: steps.access.outputs.ready == 'true'
         env:
-          GH_TOKEN: ${{ secrets.BUNDLE_REPOS_TOKEN || github.token }}
-          BUNDLE_ERIA_TOKEN: ${{ secrets.BUNDLE_ERIA_REPOS_TOKEN }}
-          BUNDLE_ADAN_TOKEN: ${{ secrets.BUNDLE_ADAN_REPOS_TOKEN }}
+          GH_TOKEN: ${{ secrets.BUNDLE_REPOS_TOKEN }}
           MINECRAFT_VERSION: ${{ inputs.minecraft_version || '26.3' }}
         run: |
           args=()
