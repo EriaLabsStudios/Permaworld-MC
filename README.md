@@ -66,9 +66,11 @@ un workflow configurado para ello.
    `SHA256SUMS.txt` y `manifest.json`, con el tag y commit exactos de cada mod.
 
 La Action usa el token normal del repositorio padre para publicar la release.
-Si alguno de los mods es privado, configurar el secret `BUNDLE_REPOS_TOKEN` con
-permiso de lectura sobre esos repositorios para que pueda obtener sus tags y
-codigo.
+Para leer los mods privados, configurar `BUNDLE_REPOS_TOKEN` con acceso a los
+seis repositorios, o bien `BUNDLE_ERIA_REPOS_TOKEN` para los cuatro de
+EriaLabsStudios y `BUNDLE_ADAN_REPOS_TOKEN` para los dos de AdanJoGoHe.
+Los tokens solo necesitan permiso de lectura del contenido. Si se configuran
+los secretos por propietario, tienen prioridad sobre `BUNDLE_REPOS_TOKEN`.
 
 Actualmente el lote incluye Permaworld Main, Utilities, Chat, Server
 Changelogs, Multiworld y Web. Los proyectos locales sin remoto configurado

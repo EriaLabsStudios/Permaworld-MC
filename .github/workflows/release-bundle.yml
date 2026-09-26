@@ -32,6 +32,8 @@ jobs:
       - name: Seleccionar y compilar los mods
         env:
           GH_TOKEN: ${{ secrets.BUNDLE_REPOS_TOKEN || github.token }}
+          BUNDLE_ERIA_TOKEN: ${{ secrets.BUNDLE_ERIA_REPOS_TOKEN }}
+          BUNDLE_ADAN_TOKEN: ${{ secrets.BUNDLE_ADAN_REPOS_TOKEN }}
           MINECRAFT_VERSION: ${{ inputs.minecraft_version }}
         run: python scripts/build_bundle.py "$MINECRAFT_VERSION" --workdir "$RUNNER_TEMP/permaworld-bundle" --output dist
       - name: Publicar release conjunta

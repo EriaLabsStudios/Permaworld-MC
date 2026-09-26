@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -22,8 +23,16 @@ REPOSITORIES = (
 MINECRAFT_VERSION = re.compile(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?\Z")
 
 
-def run(*args, cwd=None):
-    return subprocess.run(args, cwd=cwd, check=True, text=True, capture_output=True).stdout.strip()
+def run(*args, cwd=None, env=None):
+    return subprocess.run(args, cwd=cwd, env=env, check=True, text=True, capture_output=True).stdout.strip()
+
+
+def repo_env(repo):
+    env = os.environ.copy()
+    token = env.get("BUNDLE_ERIA_TOKEN" if repo.startswith("EriaLabsStudios/") else "BUNDLE_ADAN_TOKEN")
+    if token:
+        env["GH_TOKEN"] = token
+    return env
 
 
 def select_tag(lines, minecraft_version):
@@ -63,7 +72,7 @@ def main():
     for repo in REPOSITORIES:
         try:
             tags = run("gh", "api", "--paginate", f"repos/{repo}/tags?per_page=100",
-                       "--jq", ".[] | [.name, .commit.sha] | @tsv")
+                       "--jq", ".[] | [.name, .commit.sha] | @tsv", env=repo_env(repo))
             tag, sha = select_tag(tags.splitlines(), mc)
         except subprocess.CalledProcessError as error:
             raise SystemExit(f"No se pueden leer los tags de {repo}: {error.stderr.strip()}") from error
@@ -86,7 +95,7 @@ def main():
         if checkout.exists():
             raise SystemExit(f"El directorio de trabajo ya existe: {checkout}")
         subprocess.run(["gh", "repo", "clone", repo, str(checkout), "--",
-                        "--branch", tag, "--depth", "1"], check=True)
+                        "--branch", tag, "--depth", "1"], check=True, env=repo_env(repo))
         actual_sha = run("git", "rev-parse", "HEAD", cwd=checkout)
         if actual_sha != sha:
             raise SystemExit(f"El tag {tag} de {repo} cambio durante la compilacion")
