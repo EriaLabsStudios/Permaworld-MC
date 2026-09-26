@@ -5,7 +5,7 @@ Este es el punto de entrada a la documentación y los proyectos de Permaworld. A
 | Proyecto | Qué contiene | Enlaces |
 | --- | --- | --- |
 | **Permaworld Main** | Mod base para Minecraft Fabric: utilidades, inventario, cultivos y perfiles de paquetes de recursos. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-main) · [Descargas](https://github.com/EriaLabsStudios/permaworld-main/releases) |
-| **Permaworld Chat** | Nuevo mod de chat para Fabric 26.3. Proyecto en desarrollo, sin release funcional todavía. | [Código y seguimiento](https://github.com/EriaLabsStudios/permaworld-chat) |
+| **Permaworld Chat** | Mod de chat para Fabric 26.3. La primera release permite colorear mensajes; otras funciones siguen en desarrollo. | [Código y seguimiento](https://github.com/EriaLabsStudios/permaworld-chat) · [Descargas](https://github.com/EriaLabsStudios/permaworld-chat/releases) |
 | **Permaworld Web** | Consola web y API integradas en Minecraft. Requiere Permaworld Main. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-web) |
 | **Permaworld Texture Packs** | Fuentes editables y paquetes de recursos. | [Código y documentación](https://github.com/EriaLabsStudios/permaworld-texture-packs) |
 
