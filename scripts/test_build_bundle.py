@@ -21,6 +21,8 @@ class SelectTagTest(unittest.TestCase):
                          expected_jar_name("EriaLabsStudios/permaworld-main", "1.0.4", "26.3"))
         self.assertEqual("permaworld-server-changelogs-0.1.1-26.3.jar",
                          expected_jar_name("EriaLabsStudios/permaworld-server-changelogs", "0.1.1", "26.3"))
+        self.assertEqual("permaworld-texture-pack-0.1.0-26.3.jar",
+                         expected_jar_name("EriaLabsStudios/permaworld-texture-pack", "0.1.0", "26.3"))
 
     def test_unchanged_manifest(self):
         selected = [("owner/mod", "v1.0.0+mc26.3", "abc")]
