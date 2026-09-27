@@ -306,15 +306,15 @@ def main():
         encoding="utf-8")
     (output / "RELEASE_NOTES.md").write_text(
         f"Mods para Minecraft {mc}. Cada JAR procede del tag indicado; "
-        "el manifiesto incluye los commits y hashes SHA-256.\n\n"
+        "el manifiesto incluye los commits y hashes SHA-256.\n\n## Mods (JAR)\n\n"
         + "".join(f"- [{mod['repository']}](https://github.com/{mod['repository']}/tree/{mod['tag']}): "
                   f"`{mod['tag']}` — `{mod['jar']}`\n" for mod in manifest["mods"])
-        + "\nResource packs: descarga `" + manifest["resource_pack_archive"]["zip"]
+        + "\n## Resource packs (ZIP)\n\nDescarga `" + manifest["resource_pack_archive"]["zip"]
         + "`, extráelo y copia los ZIP de `resourcepacks/` a la carpeta `resourcepacks` de Minecraft. "
           "El ZIP contenedor no se instala directamente.\n\nPacks incluidos:\n\n"
         + "".join(f"- `{pack['name']}` {pack['version']} — `{pack['zip']}`\n"
                   for pack in manifest["resource_pack_archive"]["packs"])
-        + "\nPacks originales separados (descarga oficial):\n\n"
+        + "\n## Packs originales separados (descarga oficial)\n\n"
         + "".join(f"- [{pack['name']}]({pack['project']}) {pack['version']}\n"
                   for pack in manifest["external_resource_packs"]),
         encoding="utf-8")
