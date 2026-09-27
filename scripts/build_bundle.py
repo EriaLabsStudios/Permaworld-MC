@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import urllib.request
+from urllib.parse import urlparse
 import zipfile
 
 
@@ -101,6 +102,44 @@ def texture_pack_entries(checkout):
     return packs
 
 
+def external_pack_entries(checkout, mc):
+    catalog = json.loads((checkout / "external-packs.json").read_text(encoding="utf-8"))
+    if catalog.get("minecraftVersion") != mc:
+        return []
+    packs = []
+    seen_ids = set()
+    seen_files = set()
+    for entry in catalog["packs"]:
+        pack = {key: entry[key] for key in ("id", "group", "name", "version", "file",
+                                              "project", "url", "sha256", "sha512", "supports26_3")}
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", pack["id"]):
+            raise ValueError(f"ID de pack externo invalido: {pack['id']}")
+        if not re.fullmatch(r"[A-Za-z0-9._+\- ]+\.zip", pack["file"]):
+            raise ValueError(f"Nombre de pack externo invalido: {pack['file']}")
+        if pack["id"] in seen_ids or pack["file"] in seen_files:
+            raise ValueError(f"Pack externo duplicado: {pack['id']}")
+        seen_ids.add(pack["id"])
+        seen_files.add(pack["file"])
+        if not re.fullmatch(r"[0-9a-f]{64}", pack["sha256"]):
+            raise ValueError(f"SHA-256 de pack externo invalido: {pack['id']}")
+        if not re.fullmatch(r"[0-9a-f]{128}", pack["sha512"]):
+            raise ValueError(f"SHA-512 de pack externo invalido: {pack['id']}")
+        url = urlparse(pack["url"])
+        if url.scheme != "https" or url.hostname not in {"cdn.modrinth.com", "edge.forgecdn.net"} \
+                or url.username or url.password:
+            raise ValueError(f"URL oficial de pack externo invalida: {pack['id']}")
+        if not pack["project"].startswith(("https://modrinth.com/resourcepack/",
+                                           "https://www.curseforge.com/minecraft/texture-packs/")):
+            raise ValueError(f"Proyecto de pack externo invalido: {pack['id']}")
+        if "archive" in entry:
+            archive = Path(entry["archive"])
+            if archive.parts != ("external-packs", "archives", pack["file"]):
+                raise ValueError(f"Ruta de ZIP externo invalida: {pack['id']}")
+            pack["archive"] = archive
+        packs.append(pack)
+    return packs
+
+
 def component_text(component):
     if isinstance(component, str):
         return component
@@ -146,7 +185,7 @@ def main():
         raise SystemExit(f"El directorio de salida no esta vacio: {output}")
     workdir.mkdir(parents=True, exist_ok=True)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {"minecraft_version": mc, "mods": [], "resource_packs": [],
+    manifest = {"minecraft_version": mc, "mods": [], "resource_packs": [], "external_resource_packs": [],
                 "resource_packs_commit": texture_packs_commit}
     main_jar = None
     for repo, tag, sha in selected:
@@ -208,6 +247,7 @@ def main():
         raise SystemExit("El repositorio de paquetes cambio durante la compilacion")
     try:
         packs = texture_pack_entries(packs_checkout)
+        external_packs = external_pack_entries(packs_checkout, mc)
     except (KeyError, ValueError, json.JSONDecodeError) as error:
         raise SystemExit(f"Catalogo de paquetes invalido: {error}") from error
     packs_output = packs_checkout / "dist"
@@ -232,6 +272,19 @@ def main():
         pack["commit"] = texture_packs_commit
         manifest["resource_packs"].append({key: value for key, value in pack.items() if key != "source_zip"})
 
+    for pack in external_packs:
+        archive_path = pack.pop("archive", None)
+        if archive_path is not None:
+            archive = packs_checkout / archive_path
+            if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != pack["sha256"] \
+                    or hashlib.sha512(archive.read_bytes()).hexdigest() != pack["sha512"]:
+                raise SystemExit(f"ZIP externo ausente o hash incorrecto: {archive}")
+            with zipfile.ZipFile(archive) as zip_file:
+                if zip_file.testzip() is not None or not {"pack.mcmeta", "pack.png"}.issubset(zip_file.namelist()):
+                    raise SystemExit(f"ZIP externo invalido: {archive}")
+                json.loads(zip_file.read("pack.mcmeta"))
+        manifest["external_resource_packs"].append(pack)
+
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output / "SHA256SUMS.txt").write_text(
@@ -245,7 +298,10 @@ def main():
                   f"`{mod['tag']}` — `{mod['jar']}`\n" for mod in manifest["mods"])
         + "\nPaquetes de recursos:\n\n"
         + "".join(f"- `{pack['name']}` {pack['version']} — `{pack['zip']}`\n"
-                  for pack in manifest["resource_packs"]),
+                  for pack in manifest["resource_packs"])
+        + "\nPacks originales separados (descarga oficial):\n\n"
+        + "".join(f"- [{pack['name']}]({pack['project']}) {pack['version']}\n"
+                  for pack in manifest["external_resource_packs"]),
         encoding="utf-8")
 
 

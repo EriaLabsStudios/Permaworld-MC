@@ -31,6 +31,14 @@ manifiesto indica el ZIP, versión y SHA-256 de cada pack publicable; Main puede
 actualizar los que ya estén en `resourcepacks/` y sugerir los demás sin
 activarlos ni modificar `options.txt`.
 
+Los packs originales de los grupos Environment and Details, Fresh Details y
+Utilities se describen en `external-packs.json` del mismo repositorio privado.
+La release pública incluye sus nombres instalados, versiones, URLs oficiales y
+hashes en `external_resource_packs` del manifiesto. Main avisa cuando cambia un
+ZIP que el jugador ya tiene y lo descarga desde el autor, verificando el hash.
+Los ZIP originales no se adjuntan a la release conjunta. El nombre instalado
+permanece fijo al actualizar para conservar la selección y los grupos.
+
 ## Instalación
 
 Instala Fabric y Fabric API para la misma versión de Minecraft que indique la

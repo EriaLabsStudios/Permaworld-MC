@@ -1,5 +1,5 @@
 import unittest
-from build_bundle import component_text, expected_jar_name, same_selection, select_tag, texture_pack_entries
+from build_bundle import component_text, expected_jar_name, external_pack_entries, same_selection, select_tag, texture_pack_entries
 
 
 class SelectTagTest(unittest.TestCase):
@@ -53,6 +53,27 @@ class SelectTagTest(unittest.TestCase):
         self.assertEqual("Permaworld GUI v1.1.1", component_text([
             {"text": "Permaworld GUI"}, {"text": " v1.1.1"}
         ]))
+
+    def test_external_packs_use_fixed_local_filenames_and_official_urls(self):
+        import json
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+
+        entry = {"id": "fresh-food", "group": "Fresh Details", "name": "Fresh Food",
+                 "version": "1.3.5", "file": "fresh-food-1.3.5.zip",
+                 "project": "https://modrinth.com/resourcepack/fresh-food",
+                 "url": "https://cdn.modrinth.com/data/example/versions/one/FreshFood.zip",
+                 "sha256": "a" * 64, "sha512": "b" * 128, "supports26_3": False}
+        with TemporaryDirectory() as directory:
+            checkout = Path(directory)
+            catalog = {"minecraftVersion": "26.3", "packs": [entry]}
+            (checkout / "external-packs.json").write_text(json.dumps(catalog), encoding="utf-8")
+            self.assertEqual([entry], external_pack_entries(checkout, "26.3"))
+            self.assertEqual([], external_pack_entries(checkout, "26.2"))
+            catalog["packs"].append({**entry, "id": "other"})
+            (checkout / "external-packs.json").write_text(json.dumps(catalog), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                external_pack_entries(checkout, "26.3")
 
 
 if __name__ == "__main__":
