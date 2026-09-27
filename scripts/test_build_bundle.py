@@ -1,5 +1,5 @@
 import unittest
-from build_bundle import component_text, expected_jar_name, external_pack_entries, same_selection, select_tag, texture_pack_entries
+from build_bundle import bundle_resource_packs, component_text, expected_jar_name, external_pack_entries, same_selection, select_tag, texture_pack_entries
 
 
 class SelectTagTest(unittest.TestCase):
@@ -74,6 +74,29 @@ class SelectTagTest(unittest.TestCase):
             (checkout / "external-packs.json").write_text(json.dumps(catalog), encoding="utf-8")
             with self.assertRaises(ValueError):
                 external_pack_entries(checkout, "26.3")
+
+    def test_resource_packs_are_one_release_asset_with_individual_hashes(self):
+        import hashlib
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from zipfile import ZipFile
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            packs_output = root / "packs"
+            packs_output.mkdir()
+            inner = packs_output / "Permaworld GUI v1.1.1.zip"
+            with ZipFile(inner, "w") as pack:
+                pack.writestr("pack.mcmeta", '{"pack":{"description":"Permaworld GUI v1.1.1"}}')
+            entries = [{"id": "permaworld-gui", "zip": "permaworld-gui-1.1.1.zip",
+                        "source_zip": inner.name, "sha256": hashlib.sha256(inner.read_bytes()).hexdigest()}]
+            archive = bundle_resource_packs(entries, packs_output, root, "26.3")
+            self.assertEqual("permaworld-resource-packs-26.3.zip", archive["zip"])
+            self.assertEqual(entries[0]["sha256"], archive["packs"][0]["sha256"])
+            self.assertNotIn("source_zip", archive["packs"][0])
+            with ZipFile(root / archive["zip"]) as bundle:
+                self.assertIn("README.txt", bundle.namelist())
+                self.assertEqual(inner.read_bytes(), bundle.read("resourcepacks/permaworld-gui-1.1.1.zip"))
 
 
 if __name__ == "__main__":

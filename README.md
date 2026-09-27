@@ -26,8 +26,11 @@ Litematica. Sin Litematica no aporta una función visible, así que puedes omiti
 No necesita instalarse en el servidor.
 
 Los [proyectos de paquetes de recursos](https://github.com/EriaLabsStudios/permaworld-texture-packs)
-se compilan desde su commit exacto y se adjuntan a cada release conjunta. El
-manifiesto indica el ZIP, versión y SHA-256 de cada pack publicable; Main puede
+se compilan desde su commit exacto y se agrupan en un solo ZIP llamado
+`permaworld-resource-packs-<version de Minecraft>.zip` en cada release conjunta.
+Para instalarlos manualmente, extrae ese ZIP y copia los ZIP interiores de
+`resourcepacks/` a la carpeta `resourcepacks` de Minecraft. El manifiesto
+indica el ZIP, versión y SHA-256 de cada pack publicable; Main puede
 actualizar los que ya estén en `resourcepacks/` y sugerir los demás sin
 activarlos ni modificar `options.txt`.
 
@@ -110,8 +113,8 @@ un workflow configurado para ello.
    coincide con `gradle.properties`, compila primero `permaworld-main` y despues
    `permaworld-web`, y publica los JAR en una unica release del padre. Si falta
    un tag o falla un build, termina sin publicar el lote.
-4. Revisar la release `bundle-mc<version>-r<numero>`: contiene los JAR, los
-   ZIP de resource packs, `SHA256SUMS.txt` y `manifest.json`, con el tag y
+4. Revisar la release `bundle-mc<version>-r<numero>`: contiene los JAR, un ZIP
+   con los resource packs, `SHA256SUMS.txt` y `manifest.json`, con el tag y
    commit exactos de cada mod y el commit de los packs.
 
 El repositorio padre es público: esos JAR y el manifiesto sirven también como
