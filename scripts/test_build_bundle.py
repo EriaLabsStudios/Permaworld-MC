@@ -45,7 +45,8 @@ class SelectTagTest(unittest.TestCase):
                 {"source": "packs/legacy/old-v1.0.0", "output": "Old v1.0.0.zip", "release": False},
             ]), encoding="utf-8")
             self.assertEqual([{"id": "permaworld-gui", "name": "Permaworld GUI", "version": "1.1.1",
-                               "source": "packs/permaworld-gui-v1.1.1", "zip": "Permaworld GUI v1.1.1.zip"}],
+                               "source": "packs/permaworld-gui-v1.1.1", "source_zip": "Permaworld GUI v1.1.1.zip",
+                               "zip": "permaworld-gui-1.1.1.zip"}],
                              texture_pack_entries(checkout))
 
     def test_reads_the_text_of_resource_pack_components(self):

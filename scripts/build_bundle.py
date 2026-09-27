@@ -96,7 +96,8 @@ def texture_pack_entries(checkout):
         packs.append({"id": PACK_ID.sub("", source.name),
                       "name": entry["output"][:match.start()],
                       "version": match.group(1), "source": entry["source"],
-                      "zip": entry["output"]})
+                      "source_zip": entry["output"],
+                      "zip": f"{PACK_ID.sub('', source.name)}-{match.group(1)}.zip"})
     return packs
 
 
@@ -213,7 +214,7 @@ def main():
     subprocess.run(["pwsh", "-File", "scripts/build-packs.ps1", "-OutputDirectory", str(packs_output)],
                    cwd=packs_checkout, check=True)
     for pack in packs:
-        archive = packs_output / pack["zip"]
+        archive = packs_output / pack["source_zip"]
         if not archive.is_file():
             raise SystemExit(f"Falta el ZIP del pack: {archive}")
         with zipfile.ZipFile(archive) as zip_file:
@@ -229,7 +230,7 @@ def main():
         shutil.copy2(archive, destination)
         pack["sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()
         pack["commit"] = texture_packs_commit
-        manifest["resource_packs"].append(pack)
+        manifest["resource_packs"].append({key: value for key, value in pack.items() if key != "source_zip"})
 
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
