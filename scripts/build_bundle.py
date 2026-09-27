@@ -226,7 +226,7 @@ def main():
             if match is None or match.group(1) != pack["version"]:
                 raise SystemExit(f"La versión del pack no coincide con pack.mcmeta: {archive}")
             pack["marker"] = description[:match.start()]
-        destination = output / archive.name
+        destination = output / pack["zip"]
         shutil.copy2(archive, destination)
         pack["sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()
         pack["commit"] = texture_packs_commit
