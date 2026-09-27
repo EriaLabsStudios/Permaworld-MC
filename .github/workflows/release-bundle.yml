@@ -65,7 +65,7 @@ jobs:
           MINECRAFT_VERSION: ${{ inputs.minecraft_version || '26.3' }}
         run: |
           tag="bundle-mc${MINECRAFT_VERSION}-r${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" dist/*.jar dist/SHA256SUMS.txt dist/manifest.json \
+          gh release create "$tag" dist/*.jar dist/*.zip dist/SHA256SUMS.txt dist/manifest.json \
             --target "$GITHUB_SHA" \
             --title "Permaworld MC ${MINECRAFT_VERSION} · lote ${GITHUB_RUN_NUMBER}" \
             --notes-file dist/RELEASE_NOTES.md

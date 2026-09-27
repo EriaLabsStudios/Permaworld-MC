@@ -1,5 +1,5 @@
 import unittest
-from build_bundle import expected_jar_name, same_selection, select_tag
+from build_bundle import expected_jar_name, same_selection, select_tag, texture_pack_entries
 
 
 class SelectTagTest(unittest.TestCase):
@@ -26,9 +26,27 @@ class SelectTagTest(unittest.TestCase):
 
     def test_unchanged_manifest(self):
         selected = [("owner/mod", "v1.0.0+mc26.3", "abc")]
-        manifest = {"mods": [{"repository": "owner/mod", "tag": "v1.0.0+mc26.3", "commit": "abc"}]}
-        self.assertTrue(same_selection(manifest, selected))
-        self.assertFalse(same_selection(None, selected))
+        manifest = {"mods": [{"repository": "owner/mod", "tag": "v1.0.0+mc26.3", "commit": "abc"}],
+                    "resource_packs_commit": "packs"}
+        self.assertTrue(same_selection(manifest, selected, "packs"))
+        self.assertFalse(same_selection(manifest, selected, "new-packs"))
+        self.assertFalse(same_selection(None, selected, "packs"))
+
+    def test_selects_versioned_release_packs_with_stable_ids(self):
+        import json
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+
+        with TemporaryDirectory() as directory:
+            checkout = Path(directory)
+            (checkout / "packs.json").write_text(json.dumps([
+                {"source": "packs/permaworld-gui-v1.1.1", "output": "Permaworld GUI v1.1.1.zip", "release": True},
+                {"source": "packs/permaworld-texturepack", "output": "permaworld_texturepack.zip", "release": True},
+                {"source": "packs/legacy/old-v1.0.0", "output": "Old v1.0.0.zip", "release": False},
+            ]), encoding="utf-8")
+            self.assertEqual([{"id": "permaworld-gui", "name": "Permaworld GUI", "version": "1.1.1",
+                               "source": "packs/permaworld-gui-v1.1.1", "zip": "Permaworld GUI v1.1.1.zip"}],
+                             texture_pack_entries(checkout))
 
 
 if __name__ == "__main__":

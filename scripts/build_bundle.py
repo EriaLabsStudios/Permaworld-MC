@@ -21,7 +21,10 @@ REPOSITORIES = (
     "EriaLabsStudios/permaworld-multiworld",
     "EriaLabsStudios/permaworld-web",
 )
+TEXTURE_PACKS_REPOSITORY = "EriaLabsStudios/permaworld-texture-packs"
 MINECRAFT_VERSION = re.compile(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?\Z")
+PACK_VERSION = re.compile(r" v([0-9]+\.[0-9]+\.[0-9]+)\.zip\Z")
+PACK_ID = re.compile(r"-v[0-9]+\.[0-9]+\.[0-9]+\Z")
 RELEASES_URL = "https://api.github.com/repos/EriaLabsStudios/Permaworld-MC/releases?per_page=100"
 
 
@@ -71,10 +74,29 @@ def latest_bundle_manifest(mc):
         return json.load(response)
 
 
-def same_selection(manifest, selected):
+def same_selection(manifest, selected, texture_packs_commit):
     return manifest is not None and {
         (mod["repository"], mod["tag"], mod["commit"]) for mod in manifest["mods"]
-    } == set(selected)
+    } == set(selected) and manifest.get("resource_packs_commit") == texture_packs_commit
+
+
+def texture_pack_entries(checkout):
+    entries = json.loads((checkout / "packs.json").read_text(encoding="utf-8"))
+    packs = []
+    for entry in entries:
+        if not entry.get("release"):
+            continue
+        match = PACK_VERSION.search(entry["output"])
+        if match is None:
+            continue
+        source = Path(entry["source"])
+        if source.is_absolute() or source.parts[0] != "packs":
+            raise ValueError(f"Fuente de pack invalida: {entry['source']}")
+        packs.append({"id": PACK_ID.sub("", source.name),
+                      "name": entry["output"][:match.start()],
+                      "version": match.group(1), "source": entry["source"],
+                      "zip": entry["output"]})
+    return packs
 
 
 def main():
@@ -101,7 +123,8 @@ def main():
         selected.append((repo, tag, sha))
         print(f"{repo}: {tag} ({sha})", flush=True)
 
-    if args.skip_unchanged and same_selection(latest_bundle_manifest(mc), selected):
+    texture_packs_commit = run("gh", "api", f"repos/{TEXTURE_PACKS_REPOSITORY}/commits/main", "--jq", ".sha")
+    if args.skip_unchanged and same_selection(latest_bundle_manifest(mc), selected, texture_packs_commit):
         print("Sin cambios respecto a la ultima release conjunta", flush=True)
         return
 
@@ -111,7 +134,8 @@ def main():
         raise SystemExit(f"El directorio de salida no esta vacio: {output}")
     workdir.mkdir(parents=True, exist_ok=True)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {"minecraft_version": mc, "mods": []}
+    manifest = {"minecraft_version": mc, "mods": [], "resource_packs": [],
+                "resource_packs_commit": texture_packs_commit}
     main_jar = None
     for repo, tag, sha in selected:
         name = repo.rsplit("/", 1)[1]
@@ -165,16 +189,49 @@ def main():
         if name == "permaworld-main":
             main_jar = jar.resolve()
 
+    packs_checkout = workdir / "permaworld-texture-packs"
+    subprocess.run(["gh", "repo", "clone", TEXTURE_PACKS_REPOSITORY, str(packs_checkout), "--",
+                    "--depth", "1"], check=True)
+    if run("git", "rev-parse", "HEAD", cwd=packs_checkout) != texture_packs_commit:
+        raise SystemExit("El repositorio de paquetes cambio durante la compilacion")
+    try:
+        packs = texture_pack_entries(packs_checkout)
+    except (KeyError, ValueError, json.JSONDecodeError) as error:
+        raise SystemExit(f"Catalogo de paquetes invalido: {error}") from error
+    packs_output = packs_checkout / "dist"
+    subprocess.run(["pwsh", "-File", "scripts/build-packs.ps1", "-OutputDirectory", str(packs_output)],
+                   cwd=packs_checkout, check=True)
+    for pack in packs:
+        archive = packs_output / pack["zip"]
+        if not archive.is_file():
+            raise SystemExit(f"Falta el ZIP del pack: {archive}")
+        with zipfile.ZipFile(archive) as zip_file:
+            if zip_file.testzip() is not None or not {"pack.mcmeta", "pack.png"}.issubset(zip_file.namelist()):
+                raise SystemExit(f"Pack invalido: {archive}")
+            metadata = json.loads(zip_file.read("pack.mcmeta"))
+            description = json.dumps(metadata.get("pack", {}).get("description", ""), ensure_ascii=False)
+            if pack["name"] not in description:
+                raise SystemExit(f"El nombre del pack no coincide con pack.mcmeta: {archive}")
+        destination = output / archive.name
+        shutil.copy2(archive, destination)
+        pack["sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()
+        pack["commit"] = texture_packs_commit
+        manifest["resource_packs"].append(pack)
+
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output / "SHA256SUMS.txt").write_text(
-        "".join(f"{mod['sha256']}  {mod['jar']}\n" for mod in manifest["mods"]),
+        "".join(f"{mod['sha256']}  {mod['jar']}\n" for mod in manifest["mods"])
+        + "".join(f"{pack['sha256']}  {pack['zip']}\n" for pack in manifest["resource_packs"]),
         encoding="utf-8")
     (output / "RELEASE_NOTES.md").write_text(
         f"Mods para Minecraft {mc}. Cada JAR procede del tag indicado; "
         "el manifiesto incluye los commits y hashes SHA-256.\n\n"
         + "".join(f"- [{mod['repository']}](https://github.com/{mod['repository']}/tree/{mod['tag']}): "
-                  f"`{mod['tag']}` — `{mod['jar']}`\n" for mod in manifest["mods"]),
+                  f"`{mod['tag']}` — `{mod['jar']}`\n" for mod in manifest["mods"])
+        + "\nPaquetes de recursos:\n\n"
+        + "".join(f"- `{pack['name']}` {pack['version']} — `{pack['zip']}`\n"
+                  for pack in manifest["resource_packs"]),
         encoding="utf-8")
 
 
