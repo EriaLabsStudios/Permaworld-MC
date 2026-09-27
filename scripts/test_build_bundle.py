@@ -1,5 +1,5 @@
 import unittest
-from build_bundle import expected_jar_name, same_selection, select_tag, texture_pack_entries
+from build_bundle import component_text, expected_jar_name, same_selection, select_tag, texture_pack_entries
 
 
 class SelectTagTest(unittest.TestCase):
@@ -47,6 +47,11 @@ class SelectTagTest(unittest.TestCase):
             self.assertEqual([{"id": "permaworld-gui", "name": "Permaworld GUI", "version": "1.1.1",
                                "source": "packs/permaworld-gui-v1.1.1", "zip": "Permaworld GUI v1.1.1.zip"}],
                              texture_pack_entries(checkout))
+
+    def test_reads_the_text_of_resource_pack_components(self):
+        self.assertEqual("Permaworld GUI v1.1.1", component_text([
+            {"text": "Permaworld GUI"}, {"text": " v1.1.1"}
+        ]))
 
 
 if __name__ == "__main__":

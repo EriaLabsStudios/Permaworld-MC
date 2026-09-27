@@ -24,6 +24,7 @@ REPOSITORIES = (
 TEXTURE_PACKS_REPOSITORY = "EriaLabsStudios/permaworld-texture-packs"
 MINECRAFT_VERSION = re.compile(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?\Z")
 PACK_VERSION = re.compile(r" v([0-9]+\.[0-9]+\.[0-9]+)\.zip\Z")
+DESCRIPTION_VERSION = re.compile(r" v([0-9]+\.[0-9]+\.[0-9]+)\b")
 PACK_ID = re.compile(r"-v[0-9]+\.[0-9]+\.[0-9]+\Z")
 RELEASES_URL = "https://api.github.com/repos/EriaLabsStudios/Permaworld-MC/releases?per_page=100"
 
@@ -97,6 +98,16 @@ def texture_pack_entries(checkout):
                       "version": match.group(1), "source": entry["source"],
                       "zip": entry["output"]})
     return packs
+
+
+def component_text(component):
+    if isinstance(component, str):
+        return component
+    if isinstance(component, list):
+        return "".join(component_text(item) for item in component)
+    if isinstance(component, dict):
+        return component.get("text", "")
+    return ""
 
 
 def main():
@@ -209,9 +220,11 @@ def main():
             if zip_file.testzip() is not None or not {"pack.mcmeta", "pack.png"}.issubset(zip_file.namelist()):
                 raise SystemExit(f"Pack invalido: {archive}")
             metadata = json.loads(zip_file.read("pack.mcmeta"))
-            description = json.dumps(metadata.get("pack", {}).get("description", ""), ensure_ascii=False)
-            if pack["name"] not in description:
-                raise SystemExit(f"El nombre del pack no coincide con pack.mcmeta: {archive}")
+            description = component_text(metadata.get("pack", {}).get("description", ""))
+            match = DESCRIPTION_VERSION.search(description)
+            if match is None or match.group(1) != pack["version"]:
+                raise SystemExit(f"La versión del pack no coincide con pack.mcmeta: {archive}")
+            pack["marker"] = description[:match.start()]
         destination = output / archive.name
         shutil.copy2(archive, destination)
         pack["sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()
