@@ -150,6 +150,21 @@ def component_text(component):
     return ""
 
 
+def bundle_resource_packs(packs, packs_output, output, mc):
+    name = f"permaworld-resource-packs-{mc}.zip"
+    destination = output / name
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
+        bundle.writestr("README.txt", "Extrae los ZIP de resourcepacks/ y copia los que quieras instalar "
+                        "a la carpeta resourcepacks de Minecraft. No instales este ZIP contenedor.\n")
+        for pack in packs:
+            bundle.write(packs_output / pack["source_zip"], f"resourcepacks/{pack['zip']}")
+    with zipfile.ZipFile(destination) as bundle:
+        if bundle.testzip() is not None:
+            raise SystemExit(f"ZIP de resource packs invalido: {destination}")
+    return {"zip": name, "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
+            "packs": [{key: value for key, value in pack.items() if key != "source_zip"} for pack in packs]}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("minecraft_version")
@@ -266,11 +281,9 @@ def main():
             if match is None or match.group(1) != pack["version"]:
                 raise SystemExit(f"La versión del pack no coincide con pack.mcmeta: {archive}")
             pack["marker"] = description[:match.start()]
-        destination = output / pack["zip"]
-        shutil.copy2(archive, destination)
-        pack["sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()
+        pack["sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
         pack["commit"] = texture_packs_commit
-        manifest["resource_packs"].append({key: value for key, value in pack.items() if key != "source_zip"})
+    manifest["resource_pack_archive"] = bundle_resource_packs(packs, packs_output, output, mc)
 
     for pack in external_packs:
         archive_path = pack.pop("archive", None)
@@ -289,17 +302,19 @@ def main():
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output / "SHA256SUMS.txt").write_text(
         "".join(f"{mod['sha256']}  {mod['jar']}\n" for mod in manifest["mods"])
-        + "".join(f"{pack['sha256']}  {pack['zip']}\n" for pack in manifest["resource_packs"]),
+        + f"{manifest['resource_pack_archive']['sha256']}  {manifest['resource_pack_archive']['zip']}\n",
         encoding="utf-8")
     (output / "RELEASE_NOTES.md").write_text(
         f"Mods para Minecraft {mc}. Cada JAR procede del tag indicado; "
-        "el manifiesto incluye los commits y hashes SHA-256.\n\n"
+        "el manifiesto incluye los commits y hashes SHA-256.\n\n## Mods (JAR)\n\n"
         + "".join(f"- [{mod['repository']}](https://github.com/{mod['repository']}/tree/{mod['tag']}): "
                   f"`{mod['tag']}` — `{mod['jar']}`\n" for mod in manifest["mods"])
-        + "\nPaquetes de recursos:\n\n"
+        + "\n## Resource packs (ZIP)\n\nDescarga `" + manifest["resource_pack_archive"]["zip"]
+        + "`, extráelo y copia los ZIP de `resourcepacks/` a la carpeta `resourcepacks` de Minecraft. "
+          "El ZIP contenedor no se instala directamente.\n\nPacks incluidos:\n\n"
         + "".join(f"- `{pack['name']}` {pack['version']} — `{pack['zip']}`\n"
-                  for pack in manifest["resource_packs"])
-        + "\nPacks originales separados (descarga oficial):\n\n"
+                  for pack in manifest["resource_pack_archive"]["packs"])
+        + "\n## Packs originales separados (descarga oficial)\n\n"
         + "".join(f"- [{pack['name']}]({pack['project']}) {pack['version']}\n"
                   for pack in manifest["external_resource_packs"]),
         encoding="utf-8")
