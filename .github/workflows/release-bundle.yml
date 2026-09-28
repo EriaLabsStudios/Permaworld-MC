@@ -47,7 +47,7 @@ jobs:
           python-version: '3.13'
       - uses: gradle/actions/setup-gradle@v4
         if: steps.access.outputs.ready == 'true'
-      - run: python -m unittest discover -s scripts -p test_build_bundle.py
+      - run: python -m unittest discover -s scripts -p 'test_*.py'
         if: steps.access.outputs.ready == 'true'
       - name: Seleccionar y compilar los mods
         if: steps.access.outputs.ready == 'true'
@@ -69,3 +69,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Permaworld MC ${MINECRAFT_VERSION} · lote ${GITHUB_RUN_NUMBER}" \
             --notes-file dist/RELEASE_NOTES.md
+          python scripts/prune_bundle_releases.py "$tag"
