@@ -117,6 +117,10 @@ un workflow configurado para ello.
    con los resource packs, `SHA256SUMS.txt` y `manifest.json`, con el tag y
    commit exactos de cada mod y el commit de los packs.
 
+Tras publicar un lote, la Action conserva las dos releases conjuntas más
+recientes de esa versión de Minecraft y elimina las anteriores junto con sus
+tags. Las releases individuales de los mods no se ven afectadas.
+
 El repositorio padre es público: esos JAR y el manifiesto sirven también como
 catálogo de actualizaciones para los clientes, sin publicar el código de los
 mods. El workflow revisa los tags de Minecraft 26.3 cada hora y solo crea otra
