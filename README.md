@@ -30,15 +30,15 @@ se compilan desde su commit exacto y se agrupan en un solo ZIP llamado
 `permaworld-resource-packs-<version de Minecraft>.zip` en cada release conjunta.
 Para instalarlos manualmente, extrae ese ZIP y copia los ZIP interiores de
 `resourcepacks/` a la carpeta `resourcepacks` de Minecraft. El manifiesto
-indica el ZIP, versión y SHA-256 de cada pack publicable; Main puede
-actualizar los que ya estén en `resourcepacks/` y sugerir los demás sin
-activarlos ni modificar `options.txt`.
+indica el ZIP, versión y SHA-256 de cada pack publicable. Desde Main 1.0.20,
+la actualización e instalación automática de resource packs están desactivadas;
+los ZIP siguen disponibles para instalarlos manualmente. El actualizador de
+mods continúa funcionando, incluido el JAR de Permaworld Texture Pack.
 
 Los packs originales de los grupos Environment and Details, Fresh Details y
 Utilities se describen en `external-packs.json` del mismo repositorio privado.
 La release pública incluye sus nombres instalados, versiones, URLs oficiales y
-hashes en `external_resource_packs` del manifiesto. Main avisa cuando cambia un
-ZIP que el jugador ya tiene y lo descarga desde el autor, verificando el hash.
+hashes en `external_resource_packs` del manifiesto para descarga manual.
 Los ZIP originales no se adjuntan a la release conjunta. El nombre instalado
 permanece fijo al actualizar para conservar la selección y los grupos.
 
