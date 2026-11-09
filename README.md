@@ -123,9 +123,8 @@ tags. Las releases individuales de los mods no se ven afectadas.
 
 El repositorio padre es público: esos JAR y el manifiesto sirven también como
 catálogo de actualizaciones para los clientes, sin publicar el código de los
-mods. El workflow revisa los tags de Minecraft 26.3 cada hora y solo crea otra
-release cuando cambia al menos uno. Una ejecución manual permite publicar un
-lote para otra versión exacta de Minecraft.
+mods. El workflow se ejecuta manualmente desde **Run workflow** con la versión
+exacta de Minecraft indicada en `minecraft_version`.
 
 La Action usa el token normal del repositorio padre para publicar la release.
 Para leer los siete mods privados de EriaLabsStudios, configurar
